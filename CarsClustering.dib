@@ -1,0 +1,133 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"languageName":"csharp","name":"csharp"}]}}
+
+#!csharp
+
+#r "nuget:Microsoft.Data.Analysis"
+
+#!csharp
+
+using Microsoft.Data.Analysis;
+
+DataFrame df = DataFrame.LoadCsv("data/original/CarPrices.csv");
+
+df.Head(5)
+
+#!csharp
+
+df.Info()
+
+#!csharp
+
+df.Description()
+
+#!csharp
+
+df["Price"]
+
+#!csharp
+
+df["Price"].Description()
+
+#!csharp
+
+df["Model"].ValueCounts()
+
+#!csharp
+
+DataFrame.SaveCsv(df, "data/original/test_out.csv");
+
+#!csharp
+
+#r "nuget:ScottPlot"
+#r "nuget:SkiaSharp.NativeAssets.Linux.NoDependencies"
+
+#!csharp
+
+using System.Linq;
+
+T[] GetArrayFromColumn<T>(DataFrameColumn column) {
+    ArgumentNullException.ThrowIfNull(column);
+    
+    long length = column.Length;
+    IEnumerable<T> values = column[0, (int)(length - 1)].Cast<T>();
+
+    return values.ToArray();
+}
+
+#!csharp
+
+df["Miles"] = df["KMs Driven"] / 1.609
+
+#!csharp
+
+df["Price"] = df["Price"] * 0.0036
+
+#!csharp
+
+//df = df.Filter(df["Year"].ElementwiseGreaterThanOrEqual(2000));
+//df = df.Filter(df["Year"].ElementwiseLessThanOrEqual(2018));
+//df = df.Filter(df["Price"].ElementwiseLessThan(50000));
+var df_corolla = df.Filter(df["Model"].ElementwiseEquals("Corolla XLI"));
+var df_civic = df.Filter(df["Model"].ElementwiseEquals("Margalla"));
+var df_alto = df.Filter(df["Model"].ElementwiseEquals("Alto"));
+//df = df.Filter(df["Price"].ElementwiseGreaterThanOrEqual(1000));
+df_alto.Head(5)
+
+#!csharp
+
+double?[] dataY_Alto = GetArrayFromColumn<double?>(df_alto["Miles"]);
+float?[] dataX_Alto = GetArrayFromColumn<float?>(df_alto["Year"]);
+double?[] dataY_Civic = GetArrayFromColumn<double?>(df_civic["Miles"]);
+float?[] dataX_Civic = GetArrayFromColumn<float?>(df_civic["Year"]);
+double?[] dataY_Corolla = GetArrayFromColumn<double?>(df_corolla["Miles"]);
+float?[] dataX_Corolla = GetArrayFromColumn<float?>(df_corolla["Year"]);
+
+#!csharp
+
+// Setup a custom formatter to display plots as images
+using Microsoft.DotNet.Interactive.Formatting;
+Formatter.Register(typeof(ScottPlot.Plot), (p, w) => 
+    w.Write(((ScottPlot.Plot)p).GetImageHtml(700, 400)), HtmlFormatter.MimeType);
+
+#!csharp
+
+using ScottPlot;
+
+Plot plt = new();
+
+var point = plt.Add.Markers(dataX_Corolla, dataY_Corolla);
+point.MarkerSize = 5f;
+point.MarkerStyle.Shape = MarkerShape.OpenSquare;
+point.MarkerStyle.Fill.Color = Colors.DimGray;
+point.Label = "Luxury Car";
+
+/*
+point = plt.Add.Markers(dataX_Alto, dataY_Alto);
+point.MarkerSize = 3.5f;
+point.MarkerStyle.Shape = MarkerShape.OpenCircle;
+point.MarkerStyle.Fill.Color = Colors.Gray;
+point.Label = "Midrange Car";
+*/
+
+point = plt.Add.Markers(dataX_Civic, dataY_Civic);
+point.MarkerSize = 5f;
+point.MarkerStyle.Shape = MarkerShape.OpenDiamond;
+point.MarkerStyle.Fill.Color = Colors.Black;
+point.Label = "Budget Car";
+
+ScottPlot.TickGenerators.NumericAutomatic tickGen = new();
+tickGen.LabelFormatter = (x) => $"{x:0}";
+tickGen.IntegerTicksOnly = true;
+plt.Axes.Bottom.TickGenerator = tickGen;
+
+plt.ShowLegend();
+plt.Legend.Location = Alignment.UpperRight;
+
+plt.XLabel("Year");
+plt.YLabel("Mileage");
+plt.Axes.SetLimitsY(bottom:0, top: 350000);
+plt.Axes.SetLimitsX(left:1992, right: 2018);
+plt.Title("Car Mileage and Selling Year by Model");
+plt

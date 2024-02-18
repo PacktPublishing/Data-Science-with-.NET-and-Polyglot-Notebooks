@@ -1,0 +1,83 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"name":"csharp"}]}}
+
+#!mermaid
+
+flowchart LR
+    Jupyter -.- JuliaKernel[Julia Kernel]
+    pyCode[Python Code] --> Jupyter[Jupyter Notebook] --> PyKernel[Python Kernel] --> Output
+    Jupyter -.- RKernel[R Kernel]
+
+#!mermaid
+
+flowchart LR
+    subgraph Kernels
+        direction LR
+        JuliaKernel[Julia Kernel]
+        PyKernel[Python Kernel]
+        RKernel[R Kernel]
+    end
+    Jupyter[Jupyter Notebook]
+    Kernels -- Integrate Into --> Jupyter
+
+#!mermaid
+
+flowchart
+    subgraph AI        
+        chat[Conversational AI]
+        rules[Rules-based Systems]
+        game[Game AI]
+
+        subgraph Machine Learning
+            Regression
+            Classification
+            Clustering
+            deep[Deep Learning]
+        end
+
+    end
+
+#!mermaid
+
+%%{ init: { 'flowchart': { 'curve': 'natural'} } }%%
+flowchart LR
+        direction LR
+        subgraph Input
+            in1(( ))
+            in2(( ))
+        end
+
+        subgraph Hidden Layers
+            hl1a(( ))
+            hl1b(( ))
+            hl1c(( ))
+            hl2a(( ))
+            hl2b(( ))
+            hl2c(( ))
+        end
+
+        subgraph Output
+            out(( ))
+        end
+
+    in1 --- hl1a
+    in1 --- hl1b
+    in1 --- hl1c
+    in2 --- hl1a
+    in2 --- hl1b
+    in2 --- hl1c
+
+    hl1a --- hl2a
+    hl1a --- hl2b
+    hl1a --- hl2c
+    hl1b --- hl2a
+    hl1b --- hl2b
+    hl1b --- hl2c
+    hl1c --- hl2a
+    hl1c --- hl2b
+    hl1c --- hl2c   
+
+    hl2a --- out 
+    hl2b --- out
+    hl2c --- out

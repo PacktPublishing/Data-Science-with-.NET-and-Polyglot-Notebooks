@@ -10,7 +10,7 @@
 
 using Microsoft.Data.Analysis;
 
-DataFrame df = DataFrame.LoadCsv("data/original/clubs.csv");
+DataFrame df = DataFrame.LoadCsv("data/original/players.csv");
 
 df.Head(5)
 
@@ -24,15 +24,15 @@ df.Description()
 
 #!csharp
 
-df["foreigners_percentage"]
+df["position"]
 
 #!csharp
 
-df["foreigners_percentage"].Description()
+df["height_in_cm"].Description()
 
 #!csharp
 
-df["foreigners_percentage"].ValueCounts()
+df["position"].ValueCounts()
 
 #!csharp
 
@@ -58,8 +58,8 @@ T[] GetArrayFromColumn<T>(DataFrameColumn column) {
 
 #!csharp
 
-float?[] dataX = GetArrayFromColumn<float?>(df["foreigners_percentage"]);
-float?[] dataY = GetArrayFromColumn<float?>(df["foreigners_number"]);
+float?[] dataX = GetArrayFromColumn<float?>(df["height_in_cm"]);
+float?[] dataY = GetArrayFromColumn<float?>(df["market_value_in_eur"]);
 
 #!csharp
 
