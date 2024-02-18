@@ -1,0 +1,21 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"languageName":"csharp","name":"csharp"}]}}
+
+#!csharp
+
+string message = "Hello World";
+
+message 
+
+#!csharp
+
+#r "nuget:Microsoft.Data.Analysis"
+
+#!csharp
+
+using Microsoft.Data.Analysis;
+
+DataFrame df = DataFrame.LoadCsv("data/original/appearances.csv");
+
+df.Head(5)
