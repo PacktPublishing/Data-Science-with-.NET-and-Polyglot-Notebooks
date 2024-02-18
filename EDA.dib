@@ -4,18 +4,79 @@
 
 #!csharp
 
-string message = "Hello World";
-
-message 
-
-#!csharp
-
 #r "nuget:Microsoft.Data.Analysis"
 
 #!csharp
 
 using Microsoft.Data.Analysis;
 
-DataFrame df = DataFrame.LoadCsv("data/original/appearances.csv");
+DataFrame df = DataFrame.LoadCsv("data/original/clubs.csv");
 
 df.Head(5)
+
+#!csharp
+
+df.Info()
+
+#!csharp
+
+df.Description()
+
+#!csharp
+
+df["foreigners_percentage"]
+
+#!csharp
+
+df["foreigners_percentage"].Description()
+
+#!csharp
+
+df["foreigners_percentage"].ValueCounts()
+
+#!csharp
+
+DataFrame.SaveCsv(df, "data/original/test_out.csv");
+
+#!csharp
+
+#r "nuget:ScottPlot"
+#r "nuget:SkiaSharp.NativeAssets.Linux.NoDependencies"
+
+#!csharp
+
+using System.Linq;
+
+T[] GetArrayFromColumn<T>(DataFrameColumn column) {
+    ArgumentNullException.ThrowIfNull(column);
+    
+    long length = column.Length;
+    IEnumerable<T> values = column[0, (int)(length - 1)].Cast<T>();
+
+    return values.ToArray();
+}
+
+#!csharp
+
+float?[] dataX = GetArrayFromColumn<float?>(df["foreigners_percentage"]);
+float?[] dataY = GetArrayFromColumn<float?>(df["foreigners_number"]);
+
+#!csharp
+
+// Setup a custom formatter to display plots as images
+using Microsoft.DotNet.Interactive.Formatting;
+Formatter.Register(typeof(ScottPlot.Plot), (p, w) => 
+    w.Write(((ScottPlot.Plot)p).GetImageHtml(400, 300)), HtmlFormatter.MimeType);
+
+#!csharp
+
+using ScottPlot;
+
+Plot plt = new();
+var point = plt.Add.Markers(dataX, dataY);
+point.MarkerSize = 3.5f;
+
+plt.XLabel("Foreigners %");
+plt.YLabel("Foreigners #");
+plt.Title("Team Composition of Foreign Players");
+plt
