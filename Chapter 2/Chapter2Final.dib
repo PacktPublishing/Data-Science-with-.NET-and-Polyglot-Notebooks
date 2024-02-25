@@ -1,3 +1,97 @@
 #!meta
 
 {"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"languageName":"csharp","name":"csharp"}]}}
+
+#!csharp
+
+Console.WriteLine("Hello Polyglot Notebooks!");
+
+#!csharp
+
+int i = 1;
+i
+
+#!csharp
+
+6 * 4
+
+#!csharp
+
+++i
+
+#!markdown
+
+# Main Heading
+
+## A subheading
+
+This is a paragraph. **This is bold text** and this is [a hyperlink](https://packt.com).
+
+#!csharp
+
+// This method counts all odd numbers leading up to the number
+// For example, 5 would return 3 counting the numbers 1, 3, and 5.
+int CountOddNumbers(int input)
+{
+    double divResult = Math.Abs(input / 2.0);
+    return (int)Math.Ceiling(divResult);
+}
+
+#!csharp
+
+CountOddNumbers(-1)
+
+#!csharp
+
+public class Book
+{
+    public required string Title {get; init;}
+    public required string Author {get; init;}
+    public required string ISBN {get; init;}
+}
+
+#!csharp
+
+Book thisBook = new() {
+    Title = "Data Science in .NET with Polyglot Notebooks",
+    Author = "Matt Eland",
+    ISBN = "Hey Packt, whats our ISBN?"
+};
+
+Console.WriteLine($"You are currently reading {thisBook.Title}");
+thisBook
+
+#!fsharp
+
+let mutable maxNum = 15
+
+let fizzbuzz n =
+    match n with
+    | n when n % 15 = 0 -> "FizzBuzz"
+    | n when n % 5 = 0 -> "Buzz"
+    | n when n % 3 = 0 -> "Fizz"
+    | _ -> n.ToString ()
+
+[1..maxNum]
+|> Seq.iter (fun x -> printf "%s " (fizzbuzz x))
+
+#!csharp
+
+#!set --value @fsharp:maxNum --name maxNum
+
+#!csharp
+
+Console.WriteLine($"The value in maxNum is {maxNum}");
+
+#!fsharp
+
+maxNum <- 5
+maxNum
+
+#!markdown
+
+Note how the Variables view now has two different values for maxNum for C# and F# kernels - both with different values
+
+#!csharp
+
+#!about
