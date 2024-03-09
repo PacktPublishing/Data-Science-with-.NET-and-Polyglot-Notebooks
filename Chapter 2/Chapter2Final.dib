@@ -55,7 +55,7 @@ public class Book
 Book thisBook = new() {
     Title = "Data Science in .NET with Polyglot Notebooks",
     Author = "Matt Eland",
-    ISBN = "Hey Packt, whats our ISBN?"
+    ISBN = "978-1-83588-296-2"
 };
 
 Console.WriteLine($"You are currently reading {thisBook.Title}");

@@ -10,7 +10,7 @@
 
 using Microsoft.Data.Analysis;
 
-DataFrame df = DataFrame.LoadCsv("data/original/players.csv");
+DataFrame df = DataFrame.LoadCsv("../data/original/players.csv");
 
 df.Head(5)
 
@@ -24,7 +24,12 @@ df.Description()
 
 #!csharp
 
-df["position"]
+df["position"].DataType
+
+#!csharp
+
+IEnumerable<string> sDC = df["position"] as StringDataFrameColumn;
+sDC.Distinct()
 
 #!csharp
 
