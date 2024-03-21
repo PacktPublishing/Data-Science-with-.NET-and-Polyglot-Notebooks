@@ -16,6 +16,11 @@ dfPlayers.Head(5)
 
 #!csharp
 
+dfPlayers = dfPlayers.Filter(dfPlayers["last_season"].ElementwiseEquals(2023));
+dfPlayers.Head(5)
+
+#!csharp
+
 DataFrame dfClubs = DataFrame.LoadCsv("../data/original/clubs.csv");
 
 dfClubs.Head(5)
@@ -25,12 +30,6 @@ dfClubs.Head(5)
 DataFrame dfLineups = DataFrame.LoadCsv("../data/original/game_lineups.csv", guessRows: 70); // https://github.com/dotnet/machinelearning/issues/5884
 
 dfLineups.Head(5)
-
-#!csharp
-
-DataFrame dfGames = DataFrame.LoadCsv("../data/original/games.csv", guessRows: 15);
-
-dfGames.Head(5)
 
 #!csharp
 
@@ -44,13 +43,56 @@ DataFrame dfAppearances = DataFrame.LoadCsv("../data/original/appearances.csv");
 
 dfAppearances.Head(5)
 
-#!markdown
+#!csharp
 
-# TODO: Group player appearances by player! These are individual game appearances!
+dfAppearances.Columns.Add(new SingleDataFrameColumn("games_played", Enumerable.Repeat(1f, dfAppearances.Rows.Count()).ToArray()));
 
 #!csharp
 
-DataFrame dfPlayerStats = dfPlayers.Merge<int>(dfAppearances, leftJoinColumn: "player_id", rightJoinColumn: "player_id", joinAlgorithm: JoinAlgorithm.Inner, leftSuffix: "");
+dfAppearances.Columns.Add(new SingleDataFrameColumn("Year", dfAppearances["date"].Cast<DateTime>().Select(d => (float)d.Year)));
+dfAppearances.Head(5)
+
+#!csharp
+
+DataFrame dfAppearancesThisSeason = dfAppearances.Filter(dfAppearances["Year"].ElementwiseEquals(2023));
+dfAppearancesThisSeason.Head(5)
+
+#!csharp
+
+DataFrame dfAppearancesLastSeason = dfAppearances.Filter(dfAppearances["Year"].ElementwiseEquals(2022));
+dfAppearancesLastSeason.Head(5)
+
+#!csharp
+
+DataFrame dfStatsThisSeason = dfAppearancesThisSeason.GroupBy("player_id").Sum(["yellow_cards", "red_cards", "goals", "assists", "minutes_played", "games_played"]);
+dfStatsThisSeason.Head(5)
+
+#!csharp
+
+DataFrame dfStatsPrevSeason = dfAppearancesLastSeason.GroupBy("player_id").Sum(["yellow_cards", "red_cards", "goals", "assists", "minutes_played", "games_played"]);
+dfStatsPrevSeason.Head(5)
+
+#!csharp
+
+DataFrame dfGames = DataFrame.LoadCsv("../data/original/games.csv", guessRows: 15);
+
+dfGames.Head(5)
+
+#!csharp
+
+DataFrame dfStats = dfStatsThisSeason.Merge<int>(dfStatsPrevSeason, leftJoinColumn: "player_id", rightJoinColumn: "player_id", leftSuffix: "_current", rightSuffix: "_previous");
+dfStats.Head(5)
+
+#!csharp
+
+dfStats.Columns.Remove("player_id_previous");
+dfStats["player_id_current"].SetName("player_id");
+dfStats.Head(5)
+
+#!csharp
+
+DataFrame dfPlayerStats = dfPlayers.Merge<int>(dfStats, leftJoinColumn: "player_id", rightJoinColumn: "player_id", joinAlgorithm: JoinAlgorithm.Inner, leftSuffix: "");
+dfPlayerStats.Columns.Remove("player_id_right");
 dfPlayerStats.Head(5)
 
 #!csharp
@@ -117,7 +159,8 @@ dfPlayerStats.Head(5)
 
 #!csharp
 
-var dfPlayerShootouts = dfPlayerStats.Merge<int>(dfShootoutEventsGrouped, leftJoinColumn: "player_id", rightJoinColumn: "player_id", joinAlgorithm: JoinAlgorithm.Left);
+var dfPlayerShootouts = dfPlayerStats.Merge<int>(dfShootoutEventsGrouped, leftJoinColumn: "player_id", rightJoinColumn: "player_id", joinAlgorithm: JoinAlgorithm.Left, leftSuffix: "");
+dfPlayerShootouts.Columns.Remove("player_id_right");
 dfPlayerShootouts.Head(5)
 
 #!csharp
@@ -128,42 +171,19 @@ dfPlayerShootouts.Head(5)
 
 #!csharp
 
-var goalFilter = dfEvents["type"].ElementwiseEquals<string>("Goals"); // PrimitiveDataFrameColumn<bool>
-DataFrame dfGoalEvents = dfEvents.Filter(goalFilter);
-
-dfGoalEvents.Head(5)
+dfPlayerShootouts["Scored 5"] = dfPlayerShootouts["goals_current"].ElementwiseGreaterThanOrEqual<int>(5);
+dfPlayerShootouts.Head(5)
 
 #!csharp
 
-var cardFilter = dfEvents["type"].ElementwiseEquals<string>("Cards"); // PrimitiveDataFrameColumn<bool>
-DataFrame dfCardEvents = dfEvents.Filter(cardFilter);
+// Remove unnecessary columns
+string[] columnsToDrop = new string[] { "first_name", "last_name", "name", "last_season", "player_id", "index", "current_club_id", "player_code", "city_of_birth", "country_of_citizenship", "date_of_birth", "contract_expiration_date", "agent_name", "image_url", "url", "current_club_domestic_competition_id", "current_club_name", "country_of_birth", "position", "sub_position", "foot", "ShootoutScoringPercent"};
+foreach (string columnName in columnsToDrop) {
+    dfPlayerShootouts.Columns.Remove(columnName);
+}
 
-dfCardEvents.Head(5)
-
-#!csharp
-
-var dfCardCounts = dfCardEvents.GroupBy("player_id").Count("type"); // https://devblogs.microsoft.com/dotnet/an-introduction-to-dataframe/
-
-dfCardCounts["type"].SetName("CardCount");
-dfCardCounts.Head(5)
+dfPlayerShootouts.Head(5)
 
 #!csharp
 
-var dfPlayerCards = dfPlayers.Merge<int>(dfCardCounts, leftJoinColumn: "player_id", rightJoinColumn: "player_id");
-dfPlayerCards.Head(5)
-
-#!csharp
-
-dfPlayerCards["CardCount"].FillNulls(0, inPlace: true);
-dfPlayerCards.Columns.Remove("player_id_right");
-dfPlayerCards.Head(5)
-
-#!csharp
-
-dfPlayers["CardEvents"] = dfCardEvents.Filter(dfCardEvents["player_id"].ElementwiseEquals<int>(dfPlayers["player_id"]))
-
-#!csharp
-
-DataFrame dfPlayerEvents = dfPlayers.Merge<int>(dfEvents, leftJoinColumn: "player_id", rightJoinColumn: "player_id", joinAlgorithm: JoinAlgorithm.Inner);
-
-dfPlayerEvents.Head(5)
+DataFrame.SaveCsv(dfPlayerShootouts, "../data/original/training.csv")

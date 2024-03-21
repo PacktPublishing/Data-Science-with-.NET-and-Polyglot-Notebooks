@@ -1,0 +1,83 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"name":"csharp"}]}}
+
+#!csharp
+
+#r "nuget:Microsoft.Data.Analysis"
+#r "nuget:Microsoft.ML"
+#r "nuget:Microsoft.ML.AutoML"
+
+using Microsoft.Data.Analysis;
+using Microsoft.ML;
+using Microsoft.ML.Data;
+using Microsoft.ML.AutoML;
+using Microsoft.ML.Transforms;
+
+#!csharp
+
+string dataPath = "../data/original/training.csv";
+string labelColumnName = "Scored 5";
+
+#!csharp
+
+MLContext mlContext = new();
+
+#!csharp
+
+// Infer column information
+ColumnInferenceResults columnInference =
+    mlContext.Auto().InferColumns(dataPath, labelColumnName: labelColumnName, groupColumns: false);
+
+columnInference.ColumnInformation
+
+#!csharp
+
+DataFrame df = DataFrame.LoadCsv(dataPath);
+df.Head(5)
+
+#!csharp
+
+IDataView trainTestData = df;
+
+#!csharp
+
+// Split data into training and test sets keeping 20% of the data for testing and using 80% for training
+DataOperationsCatalog.TrainTestData dataSplit = 
+    mlContext.Data.TrainTestSplit(trainTestData, testFraction: 0.2, samplingKeyColumnName: labelColumnName);
+
+IDataView trainData = dataSplit.TrainSet;
+IDataView testData = dataSplit.TestSet;
+
+#!csharp
+
+using Microsoft.DotNet.Interactive.Formatting;
+Formatter.ListExpansionLimit = 25;
+
+trainData.Preview()
+
+#!csharp
+
+// Define pipeline
+SweepablePipeline pipeline =
+    mlContext.Auto().Featurizer(trainTestData, columnInformation: columnInference.ColumnInformation, outputColumnName: "Features")
+        .Append(mlContext.Auto().BinaryClassification(labelColumnName: labelColumnName));
+
+// Configure experiment
+AutoMLExperiment experiment = mlContext.Auto().CreateExperiment();
+
+experiment
+    .SetPipeline(pipeline)
+    .SetBinaryClassificationMetric(BinaryClassificationMetric.F1Score, labelColumn: labelColumnName)
+    .SetTrainingTimeInSeconds(10)
+    .SetDataset(trainData);
+
+TrialResult experimentResults = await experiment.RunAsync();
+
+#!csharp
+
+experimentResults.ToDisplayString()
+
+#!markdown
+
+# TODO: Evaluate the results

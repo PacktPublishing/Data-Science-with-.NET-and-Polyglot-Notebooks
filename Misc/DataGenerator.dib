@@ -1,0 +1,53 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"name":"csharp"}]}}
+
+#!csharp
+
+#r "nuget:Bogus"
+
+#!csharp
+
+public class FootballPlayer
+{
+    public string FirstName {get; set;}
+    public string LastName {get; set;}
+    public string Position {get; set;}
+    public int Number {get; set;}
+    public string CurrentClub {get; set;}
+    public string Nationality {get; set;}
+    public bool IsRightFooted {get; set;}
+    public int HeightInCm {get; set;}
+    public int RookieYear {get; set;}
+}
+
+#!csharp
+
+using Bogus;
+
+Faker<FootballPlayer> faker = new Faker<FootballPlayer>()
+    .RuleFor(p => p.FirstName, f => f.Name.FirstName())
+    .RuleFor(p => p.LastName, f => f.Name.LastName())
+    .RuleFor(p => p.Nationality, f => f.Address.Country())
+    .RuleFor(p => p.IsRightFooted, f => f.Random.Bool())
+    .RuleFor(p => p.Number, f => f.Random.Int(1, 99))
+    .RuleFor(p => p.HeightInCm, f => f.Random.Int(160, 190))
+    .RuleFor(p => p.RookieYear, f => f.Random.Int(2015, 2024))
+    .RuleFor(p => p.CurrentClub, f => f.Random.ArrayElement(["Packt Authors", "Globalgym Cobras", "Columbus Coders", "Houston Niners"]))
+    .RuleFor(p => p.Position, f => f.Random.ArrayElement(["Keeper", "Left Back", "Right Back", "Sweeper", "Winger", "Midfielder", ]));
+
+var players = faker.Generate(5);
+players
+
+#!csharp
+
+#r "nuget:CsvHelper"
+
+#!csharp
+
+using System.IO;
+using System.Globalization;
+
+
+using (var writer = new StreamWriter("Players.csv"))
+CsvWriter<FootballPlayer>.Write(writer, players);

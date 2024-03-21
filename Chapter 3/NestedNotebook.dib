@@ -1,0 +1,14 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"name":"csharp"}]}}
+
+#!markdown
+
+### This is a nested notebook
+This is a markdown cell inside of `NestedNotebook.dib`
+
+#!csharp
+
+string message = "This variable was defined in NestedNotebook.dib";
+
+message

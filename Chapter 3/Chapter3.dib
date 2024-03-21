@@ -1,0 +1,339 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"name":"csharp"},{"aliases":[],"languageName":"KQL","name":"kql-samples_database"},{"aliases":[],"languageName":"KQL","name":"kql-samples-database"},{"aliases":[],"languageName":"T-SQL","name":"sql-dad-jokes"}]}}
+
+#!markdown
+
+# Chapter 3
+
+This notebook covers importing code and data in Polyglot Notebooks as part of "Data Science in .NET with Polyglot Notebooks" by Matt Eland.
+
+#!markdown
+
+## Importing Code
+
+#!csharp
+
+#!import FootballPlayer.cs
+
+#!csharp
+
+FootballPlayer player = new() 
+{
+    FirstName = "Matt",
+    LastName = "Eland",
+    Position = "Keeper",
+    Number = 42,
+    Nationality = "United States",
+    CurrentClub = "Packt Authors",
+    IsRightFooted = true,
+    RookieYear = 2023,
+    HeightInCm = 168 // 5ft, 6in
+};
+
+player
+
+#!markdown
+
+This will fail because `Game` depends on `FootballClub` which has not been loaded yet.
+
+#!csharp
+
+#!import Game.cs
+
+#!markdown
+
+Below this cell we'll import `NestedNotebook.dib`
+
+#!csharp
+
+#!import NestedNotebook.dib
+
+#!markdown
+
+The previous content was from `NestedNotebook.dib`
+
+#!csharp
+
+message
+
+#!csharp
+
+#r "nuget:Newtonsoft.Json"
+
+#!csharp
+
+using Newtonsoft.Json;
+
+Formatting format = Formatting.Indented;
+JsonConvert.SerializeObject(player, format)
+
+#!csharp
+
+#r "nuget:Azure.Core,1.38.0"
+
+#!csharp
+
+#r "nuget:Azure.AI.Vision.ImageAnalysis,*-*"
+
+#!csharp
+
+#r "nuget:Microsoft.Data.Analysis,0.21.1"
+
+#!csharp
+
+using Microsoft.Data.Analysis;
+
+DataFrame df = DataFrame.LoadCsv("Players.csv");
+
+df.Head(5)
+
+#!csharp
+
+DataFrame df = DataFrame.LoadCsv("Players.csv", header: false);
+
+df.Head(5)
+
+#!csharp
+
+DataFrame.LoadCsv("Players.csv", guessRows: 25)
+
+#!csharp
+
+DataFrame.LoadCsv("Players.tsv", separator:'\t')
+
+#!markdown
+
+## JSON
+
+#!pwsh
+
+# Create headers for our request
+$obj = "System.Collections.Generic.Dictionary[[String],[String]]"
+$headers = New-Object $obj
+$headers.Add("Accept", "application/json")
+$headers
+
+#!pwsh
+
+# Make the GET request
+$url = "https://icanhazdadjoke.com"
+$response = Invoke-RestMethod -Uri $url `
+    -Method Get -Headers $headers
+
+$response
+
+#!pwsh
+
+# Get JSON from the response
+$json = $response | ConvertTo-Json
+$json
+
+#!csharp
+
+#!set --value @pwsh:json --name json
+
+#!csharp
+
+// Declare a class to represent the JSON result
+
+public class DadJoke
+{
+    public string Id {get; set;}
+    public string Joke {get; set;}
+    public int Status {get; set;}
+}
+
+#!csharp
+
+using System.Text.Json;
+
+JsonSerializerOptions options = new();
+
+// This is necessary to account for casing differences "joke" -> "Joke"
+options.PropertyNameCaseInsensitive = true;
+
+DadJoke joke = System.Text.Json.JsonSerializer.Deserialize<DadJoke>(json, options);
+joke
+
+#!csharp
+
+joke.Joke = "What do you call a careful wolf? Aware wolf.";
+joke.Id = "D5wAA5o4TCd";
+joke
+
+#!markdown
+
+## DataFrames from Objects
+
+#!csharp
+
+List<DadJoke> jokes = new() {
+    joke
+};
+
+jokes
+
+#!csharp
+
+using System.Reflection;
+
+Type reflectedType = joke.GetType();
+BindingFlags flags = BindingFlags.Instance | 
+                     BindingFlags.Public | 
+                     BindingFlags.GetProperty;
+
+var properties = reflectedType.GetProperties(flags);
+properties
+
+#!csharp
+
+DataFrame dfObjects = new();
+
+foreach (var info in properties) {
+    switch (info.PropertyType.Name) {
+        case "String":
+            dfObjects.Columns.Add(new StringDataFrameColumn(
+                    info.Name, 
+                    jokes.Select(j => info.GetValue(j).ToString())
+                ));
+            break;
+        case "Int32":
+            dfObjects.Columns.Add(new SingleDataFrameColumn(
+                    info.Name, 
+                    jokes.Select(j => float.Parse(info.GetValue(j).ToString()))
+                ));
+            break;
+    }
+}
+
+dfObjects
+
+#!markdown
+
+## SQL
+
+#!csharp
+
+#r "nuget:Microsoft.DotNet.Interactive.SqlServer,1.0.0-beta.24164.1"
+
+#!csharp
+
+#!connect -h
+
+#!markdown
+
+The following command contains the string `REDACTED` in multiple places that must be replaced with your user ID, password, and server URL
+
+#!csharp
+
+#!connect mssql --kernel-name dad-jokes "Server=tcp:REDACTED.database.windows.net,1433;Initial Catalog=REDACTED;Persist Security Info=False;User ID=REDACTED;Password=REDACTED!;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+
+#!markdown
+
+Now let's query
+
+#!sql-dad-jokes
+
+-- Running a simple query
+SELECT 
+    j.Id, 
+    j.Joke, 
+    j.Punchline 
+FROM 
+    Jokes j
+
+#!markdown
+
+Cool. Let's store the result in a variable.
+
+#!csharp
+
+#!sql-dad-jokes --name JokesTable
+SELECT 
+    j.Id, 
+    j.Joke, 
+    j.Punchline 
+FROM 
+    Jokes j
+
+#!markdown
+
+Sweet. Let's share it with another kernel
+
+#!csharp
+
+#!set --value @sql-dad-jokes:JokesTable --name JokesTable
+
+#!csharp
+
+JokesTable.GetType()
+
+#!csharp
+
+JokesTable
+
+#!csharp
+
+JokesTable.RootElement
+
+#!csharp
+
+JokesTable.RootElement[0]
+
+#!csharp
+
+using System.Text.Json;
+
+JsonElement data = JokesTable.RootElement[0].GetProperty("data");
+data
+
+#!csharp
+
+using Microsoft.DotNet.Interactive.Formatting;
+
+TabularDataResource res = data.ToTabularDataResource();
+
+#!csharp
+
+#r "nuget:Microsoft.DotNet.Interactive.ExtensionLab,1.0.0-beta.24164.1"
+
+#!csharp
+
+using Microsoft.DotNet.Interactive.ExtensionLab;
+using Microsoft.Data.Analysis;
+
+DataFrame dfJokes = res.ToDataFrame();
+
+dfJokes.Head(5)
+
+#!markdown
+
+## KQL
+
+#!csharp
+
+#r "nuget: Microsoft.DotNet.Interactive.Kql,1.0.0-beta.24164.1"
+
+#!markdown
+
+Again, you'll need to replace REDACTED with the appropriate URL here.
+
+#!csharp
+
+#!connect kql --kernel-name samples-database --cluster "https://REDACTED.kusto.windows.net/" --database "MyDatabase"
+
+#!kql-samples_database
+
+#!kql-samples-database --name BooksTable
+
+SampleData
+| where PublicationYear > 2020 and Author == 'Matt Eland'
+
+#!csharp
+
+#!set --value @kql-samples-database:BooksTable --name BooksTable
+
+#!csharp
+
+BooksTable

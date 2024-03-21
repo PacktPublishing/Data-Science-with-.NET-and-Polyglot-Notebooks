@@ -1,0 +1,50 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"name":"csharp"}]}}
+
+#!pwsh
+
+# Create headers for our request
+$obj = "System.Collections.Generic.Dictionary[[String],[String]]"
+$headers = New-Object $obj
+$headers.Add("Accept", "application/json")
+$headers
+
+#!pwsh
+
+# Make the GET request
+$url = "https://icanhazdadjoke.com"
+$response = Invoke-RestMethod -Uri $url `
+    -Method Get -Headers $headers
+
+$response
+
+#!pwsh
+
+# Get JSON from the response
+$json = $response | ConvertTo-Json
+$json
+
+#!csharp
+
+#!set --value @pwsh:json --name json
+
+#!csharp
+
+public class DadJoke
+{
+    public string Id {get; set;}
+    public string Joke {get; set;}
+    public int Status {get; set;}
+}
+
+#!csharp
+
+using System.Text.Json;
+
+JsonSerializerOptions options = new();
+options.PropertyNameCaseInsensitive = true;
+
+DadJoke joke = JsonSerializer.Deserialize<DadJoke>(json, options);
+
+joke
