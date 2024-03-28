@@ -1,0 +1,206 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"name":"csharp"}]}}
+
+#!markdown
+
+# Data Needs
+
+This notebook covers the data we'll need to explore in the book
+
+#!markdown
+
+## Original Schema
+
+#!markdown
+
+We need data from the following files:
+
+- players.csv
+- clubs.csv
+- game_lineups.csv
+- game_events.csv
+- appearances.csv
+- games.csv
+
+#!mermaid
+
+erDiagram
+    players {
+        int player_id
+        string first_name
+        string last_name
+        string name
+        int last_season
+        int current_club_id
+        string player_code
+        string country_of_birth
+        string city_of_birth
+        date date_of_birth
+        string sub_position
+        string position
+        string foot
+        int hight_in_cm
+        date contract_expiration_name
+        string agent_name
+        string image_url
+        string url
+        string current_club_domestic_competition_id
+        string current_club_name
+        int market_value_in_eur
+        int heighest_market_value_in_eur
+    }
+
+    clubs {
+        int club_id
+        string club_code
+        string name
+        string domestic_competition_id
+        int total_market_value
+        int squad_size
+        decimal average_age
+        int foreigners_number
+        decimal foreigners_percentage
+        int national_team_players
+        string stadium_name
+        int stadium_seats
+        string net_transfer_record
+        string coach_name
+        int last_season
+        string filename
+        string url
+    }
+
+    game_lineups {
+        guid game_lineups_id
+        int game_id
+        int club_id
+        string type
+        int number
+        int player_id
+        string player_name
+        int team_captain
+        string position
+    }
+
+    game_events {
+        guid game_event_id
+        date date
+        int game_id
+        int minute
+        string type
+        int club_id
+        int player_id
+        string description
+        int player_id_in
+        int player_assist_id
+    }
+
+    appearances {
+        guid appearance_id
+        int game_id
+        int player_id
+        int player_current_club_id
+        date date
+        string player_name
+        string competiton_id
+        int yellow_cards
+        int red_cards
+        int goals
+        int assists
+        int minutes_played
+    }
+
+    games {
+        int game_id
+        string competition_id
+        int season
+        string round
+        date date
+        int home_club_id
+        int away_club_id
+        int home_club_goals
+        int away_club_goals
+        int home_club_position
+        int away_club_position
+        string home_club_manager_name
+        string away_club_manager_name
+        string stadium
+        int attendance
+        string referee
+        string url
+        string home_club_formation
+        string away_club_formation
+        string home_club_name
+        string away_club_name
+        date aggregate
+        string competition_type
+    }
+
+    games }o--|{ clubs : "appears in"
+    game_events }|--|| games : "belongs to"
+    game_lineups }|--|| games : "belongs to"
+    appearances }|--|| games : "belongs to"
+    appearances }o--|| clubs : "associated with"
+    appearances }o--|| players : "associated with"
+    game_events }o--|| players : "associated with"
+    game_events }o--|| clubs : "associated with"
+    clubs |o--|{ players : "belongs to"
+    game_lineups }|--|| clubs : "manages"
+    game_lineups }|--|| players : "is listed in"
+
+#!markdown
+
+Removing non-needed fields and normalizing:
+
+#!mermaid
+
+erDiagram
+    club_games {
+        int club_game_id
+        int club_id
+        bool is_home
+        int opponent_club_id
+        int goals_for
+        int goals_against
+        string formation
+        string result
+    }
+    players {
+        int player_id
+        string first_name
+        string last_name
+        int first_season
+        int last_season
+        int current_club_id
+        string country_of_birth
+        date date_of_birth
+        string position
+        string sub_position
+        string foot
+        int hight_in_cm
+        int market_value
+        int highest_market
+    }
+
+    clubs {
+        int club_id
+        string name
+    }
+
+    player_game_stats {
+        int player_id
+        int club_game_id
+        date date
+        string competiton_id
+        int yellow_cards
+        int red_cards
+        int goals
+        int assists
+        int minutes_played
+    }
+
+    club_games }o--|{ clubs : "appears in"
+    player_game_stats }o--|| clubs : "associated with"
+    player_game_stats }o--|| players : "associated with"
+    clubs |o--|{ players : "belongs to"

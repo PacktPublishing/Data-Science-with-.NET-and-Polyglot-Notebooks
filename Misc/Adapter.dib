@@ -1,0 +1,402 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"name":"csharp"}]}}
+
+#!markdown
+
+# Common
+
+#!csharp
+
+#r "nuget:Microsoft.Data.Analysis"
+
+#!csharp
+
+string league = "GB1";
+int season = 2023;
+
+#!csharp
+
+using Microsoft.Data.Analysis;
+
+#!csharp
+
+DataFrame RemoveColumns(DataFrame df, IEnumerable<string> columns) {
+    foreach (var col in columns) {
+        df.Columns.Remove(col);
+    }
+    return df;
+}
+
+#!csharp
+
+PrimitiveDataFrameColumn<bool> IsOneOf(SingleDataFrameColumn column, IEnumerable<float> choices) {
+    HashSet<float> choiceSet = choices.ToHashSet();
+    float?[] values = column.ToArray();
+
+    PrimitiveDataFrameColumn<bool> filter = new(column.Name, column.Length);
+    for (long i = 0; i < column.Length; i++) {
+        filter[i] = values[i].HasValue && choiceSet.Contains(values[i].Value);
+    }
+    return filter;
+}
+
+#!markdown
+
+# Clubs
+
+#!csharp
+
+DataFrame dfClubs = DataFrame.LoadCsv("../data/original/clubs.csv");
+
+dfClubs.Head(5)
+
+#!csharp
+
+dfClubs = dfClubs.Filter(dfClubs["domestic_competition_id"].ElementwiseEquals(league));
+dfClubs = dfClubs.Filter(dfClubs["last_season"].ElementwiseEquals(season));
+dfClubs.Head(5)
+
+#!csharp
+
+RemoveColumns(dfClubs, new[] {
+    "domestic_competition_id", // our league
+    "total_market_value",
+    "squad_size",
+    "average_age",
+    "foreigners_number",
+    "foreigners_percentage",
+    "national_team_players",
+    "stadium_name",
+    "stadium_seats",
+    "net_transfer_record",
+    "coach_name",
+    "filename",
+    "url",
+    "club_code",
+    "last_season" // guaranteed to be the season we're looking for
+});
+
+dfClubs.Columns.Select(c => c.Name)
+
+#!csharp
+
+dfClubs.Head(5)
+
+#!csharp
+
+IEnumerable<float> clubIds = ((SingleDataFrameColumn)dfClubs["club_id"]).Cast<float>().ToArray().Distinct().Take(8);
+clubIds
+
+#!csharp
+
+dfClubs = dfClubs.Filter(IsOneOf((SingleDataFrameColumn)dfClubs["club_id"], clubIds));
+
+#!csharp
+
+dfClubs.Info()
+
+#!markdown
+
+# Players
+
+#!csharp
+
+DataFrame dfPlayers = DataFrame.LoadCsv("../data/original/players.csv");
+
+dfPlayers.Head(5)
+
+#!csharp
+
+dfPlayers = dfPlayers.Filter(dfPlayers["current_club_domestic_competition_id"].ElementwiseEquals(league));
+dfPlayers = dfPlayers.Filter(dfPlayers["last_season"].ElementwiseEquals(season));
+dfPlayers = dfPlayers.Filter(IsOneOf((SingleDataFrameColumn)dfPlayers["current_club_id"], clubIds));
+dfPlayers.Head(5)
+
+#!csharp
+
+dfPlayers = RemoveColumns(dfPlayers, new[] {
+    "current_club_domestic_competition_id", // league
+    "last_season", // guaranteed to be season
+    "first_name",
+    "last_name",
+    "player_code",
+    "city_of_birth",
+    "contract_expiration_date",
+    "agent_name",
+    "image_url",
+    "url",
+    "current_club_name",
+    "highest_market_value_in_eur"
+});
+
+dfPlayers.Columns.Select(c => c.Name)
+
+#!csharp
+
+dfPlayers.Head(5)
+
+#!csharp
+
+IEnumerable<float> playerIds = ((SingleDataFrameColumn)dfPlayers["player_id"]).Cast<float>().ToArray().Distinct();
+playerIds.Count()
+
+#!markdown
+
+# Games
+
+#!csharp
+
+DataFrame dfGames = DataFrame.LoadCsv("../data/original/games.csv", guessRows: 50);
+dfGames = dfGames.Filter(IsOneOf((SingleDataFrameColumn)dfGames["home_club_id"], clubIds));
+dfGames = dfGames.Filter(IsOneOf((SingleDataFrameColumn)dfGames["away_club_id"], clubIds));
+dfGames = dfGames.Filter(dfGames["competition_id"].ElementwiseEquals(league));
+dfGames = dfGames.Filter(dfGames["season"].ElementwiseEquals(season));
+dfGames = dfGames.Filter(dfGames["home_club_goals"].ElementwiseIsNotNull());
+dfGames = dfGames.Filter(dfGames["away_club_goals"].ElementwiseIsNotNull());
+
+dfGames.Head(5)
+
+#!csharp
+
+dfGames = RemoveColumns(dfGames, new[] {
+    "competition_id", // league
+    "season", // guaranteed to be season
+    "home_club_manager_name",
+    "away_club_manager_name",
+    "stadium",
+    "attendance",
+    "referee",
+    "url",
+    "home_club_name",
+    "away_club_name",
+    "home_club_position",
+    "away_club_position",
+    "aggregate"
+});
+
+dfGames.Columns.Select(c => c.Name)
+
+#!csharp
+
+dfGames.Head(5)
+
+#!markdown
+
+### Club Games
+
+#!csharp
+
+public enum GameResult {
+    Win,
+    Loss,
+    Draw
+}
+
+public class ClubGame
+{
+    public int ClubId {get; set;}
+    public int GameId {get; set;}
+    public bool IsHome {get; set;}
+    public int OpponentClubId {get; set;}
+    public int GoalsFor {get; set;}
+    public int GoalsAgainst {get; set;}
+    public string Formation {get; set;}
+    public GameResult Result {get; set;}
+}
+
+#!csharp
+
+List<ClubGame> clubGames = new();
+
+foreach (var row in dfGames.Rows) {
+
+    int game = (int)(float)row["game_id"];
+    int homeClub = (int)(float)row["home_club_id"];
+    int awayClub = (int)(float)row["away_club_id"];
+    int homeGoals = (int)(float)row["home_club_goals"];
+    int awayGoals = (int)(float)row["away_club_goals"];
+
+    // Home team's record
+    clubGames.Add(new() {
+        GameId = game,
+        ClubId = homeClub,
+        OpponentClubId = awayClub,
+        IsHome = true,
+        GoalsFor = homeGoals,
+        GoalsAgainst = awayGoals,
+        Formation = (string)row["home_club_formation"],
+        Result = (homeGoals - awayGoals) switch {
+            0 => GameResult.Draw,
+            >0 => GameResult.Win,
+            _ => GameResult.Loss
+        }
+    });
+
+    // Away team's record
+    clubGames.Add(new() {
+        GameId = game,
+        ClubId = awayClub,
+        OpponentClubId = homeClub,
+        IsHome = false,
+        GoalsFor = awayGoals,
+        GoalsAgainst = homeGoals,
+        Formation = (string)row["away_club_formation"],
+        Result = (homeGoals - awayGoals) switch {
+            0 => GameResult.Draw,
+            >0 => GameResult.Loss,
+            _ => GameResult.Win
+        }
+    });    
+}
+
+clubGames.Count
+
+#!csharp
+
+using System.Reflection;
+
+Type reflectedType = typeof(ClubGame);
+BindingFlags flags = BindingFlags.Instance | 
+                     BindingFlags.Public | 
+                     BindingFlags.GetProperty;
+
+var properties = reflectedType.GetProperties(flags);
+properties
+
+#!csharp
+
+DataFrame dfClubGames = new();
+
+foreach (var info in properties) {
+    switch (info.PropertyType.Name) {
+        case "Boolean":
+            dfClubGames.Columns.Add(new BooleanDataFrameColumn(
+                    info.Name, 
+                    clubGames.Select(j => (bool)info.GetValue(j))
+                ));
+            break;
+        case "String":
+            dfClubGames.Columns.Add(new StringDataFrameColumn(
+                    info.Name, 
+                    clubGames.Select(j => info.GetValue(j).ToString())
+                ));
+            break;
+        case "Int32":
+            dfClubGames.Columns.Add(new SingleDataFrameColumn(
+                    info.Name, 
+                    clubGames.Select(j => float.Parse(info.GetValue(j).ToString()))
+                ));
+            break;
+        case "GameResult":
+            dfClubGames.Columns.Add(new SingleDataFrameColumn(
+                    info.Name, 
+                    clubGames.Select(j => (float)(int)info.GetValue(j))
+                ));
+            break;
+        default:
+            Console.WriteLine("Unhandled property type " + info.PropertyType.Name);
+            break;
+    }
+}
+
+dfClubGames.Head(5)
+
+#!csharp
+
+dfGames = RemoveColumns(dfGames, new[] {
+    "home_club_goals",
+    "away_club_goals",
+    "home_club_formation",
+    "away_club_formation",
+    "round",
+    "competition_type",
+});
+dfGames.Columns.Select(c => c.Name)
+
+#!markdown
+
+## Appearances
+
+#!csharp
+
+DataFrame dfAppearances = DataFrame.LoadCsv("../data/original/appearances.csv");
+dfAppearances = dfAppearances.Filter(IsOneOf((SingleDataFrameColumn)dfAppearances["player_club_id"], clubIds));
+dfAppearances = dfAppearances.Filter(IsOneOf((SingleDataFrameColumn)dfAppearances["player_current_club_id"], clubIds));
+dfAppearances = dfAppearances.Filter(IsOneOf((SingleDataFrameColumn)dfAppearances["player_id"], playerIds));
+dfAppearances = dfAppearances.Filter(dfAppearances["competition_id"].ElementwiseEquals(league));
+dfAppearances.Head(5)
+
+#!csharp
+
+dfAppearances.Info()
+
+#!csharp
+
+dfAppearances = RemoveColumns(dfAppearances, new[] {
+    "date",
+    "player_name",
+    "competition_id"
+});
+
+dfAppearances.Columns.Select(c => c.Name)
+
+#!markdown
+
+## Anonymize Data
+
+#!csharp
+
+#r "nuget:Bogus"
+
+#!csharp
+
+using Bogus;
+
+#!csharp
+
+dfPlayers.Head(5)
+
+#!csharp
+
+foreach (var row in dfPlayers.Rows) {
+    Randomizer.Seed = new Random(int.Parse(row["player_id"].ToString()));
+    Faker faker = new();
+    row["name"] = faker.Parse("{{name.firstName(Male)}} {{name.lastName(Male)}}");
+}
+
+dfPlayers.Head(5)
+
+#!csharp
+
+string[] clubNames = new[] {
+    "Purple Cobras",
+    "Dancing Lemurs",
+    "Raging Wildabeasts",
+    "Flying Squirrels",
+    "Hidden Dragons",
+    "Diamond Dogs",
+    "Blue Foxes",
+    "Thrashing Crocs"
+};
+
+int i = 0;
+foreach (var row in dfClubs.Rows) {
+    Randomizer.Seed = new Random(++i + 100);
+    Faker faker = new();
+    row["name"] = faker.Address.City();
+}
+
+dfClubs
+
+#!markdown
+
+## Write Data Files
+
+#!csharp
+
+DataFrame.SaveCsv(dfAppearances, "../data/PlayerGameStats.csv");
+DataFrame.SaveCsv(dfGames, "../data/Games.csv");
+DataFrame.SaveCsv(dfClubGames, "../data/ClubGames.csv");
+DataFrame.SaveCsv(dfPlayers, "../data/Players.csv");
+DataFrame.SaveCsv(dfClubs, "../data/Clubs.csv");

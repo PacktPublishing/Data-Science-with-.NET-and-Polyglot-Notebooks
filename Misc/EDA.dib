@@ -16,6 +16,22 @@ df.Head(5)
 
 #!csharp
 
+DataFrame dfClubs = DataFrame.LoadCsv("../data/original/clubs.csv");
+
+dfClubs.Head(5)
+
+#!csharp
+
+StringDataFrameColumn competition = (StringDataFrameColumn)dfClubs["domestic_competition_id"];
+competition.ValueCounts()
+
+#!csharp
+
+// British Premier League
+dfClubs.Filter(dfClubs["domestic_competition_id"].ElementwiseEquals("GB1"))
+
+#!csharp
+
 df.Info()
 
 #!csharp
@@ -41,7 +57,7 @@ df["position"].ValueCounts()
 
 #!csharp
 
-DataFrame.SaveCsv(df, "data/original/test_out.csv");
+DataFrame.SaveCsv(df, "../data/original/test_out.csv");
 
 #!csharp
 
