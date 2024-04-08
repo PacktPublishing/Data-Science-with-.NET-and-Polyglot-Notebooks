@@ -1,0 +1,412 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"name":"csharp"}]}}
+
+#!markdown
+
+# Chapter 4
+
+#!csharp
+
+#r "nuget:Microsoft.Data.Analysis,0.21.1"
+
+#!csharp
+
+using Microsoft.Data.Analysis;
+
+DataFrame dfPlayers = DataFrame.LoadCsv("Players.csv");
+
+#!markdown
+
+## Viewing and Sampling Data
+
+#!csharp
+
+dfPlayers
+
+#!csharp
+
+dfPlayers.Head(5)
+
+#!csharp
+
+dfPlayers.Tail(5)
+
+#!csharp
+
+dfPlayers.Sample(5)
+
+#!markdown
+
+## Rows
+
+#!csharp
+
+dfPlayers.Rows.GetType()
+
+#!csharp
+
+DataFrameRow row = dfPlayers.Rows[4];
+row
+
+#!csharp
+
+row["height_in_cm"]
+
+#!csharp
+
+row[9] // 10th column - height_in_cm
+
+#!csharp
+
+dfPlayers.Rows[4]["height_in_cm"]
+
+#!csharp
+
+dfPlayers.Rows[0]["country_of_birth"]
+
+#!csharp
+
+dfPlayers.Rows[0]["country_of_birth"] = "United States"
+
+#!markdown
+
+## Iterating over rows
+
+#!csharp
+
+HashSet<string> usAnalogues = new() {"US", "USA", "America", "U.S.", "Untied States"}; 
+
+foreach (var row in dfPlayers.Rows)
+{
+    if (usAnalogues.Contains(row["country_of_birth"])) {
+        row["country_of_birth"] = "United States";
+        Console.WriteLine($"Corrected country for {row["name"]}");
+    }
+}
+
+#!markdown
+
+## Columns
+
+#!csharp
+
+dfPlayers.Columns.GetType()
+
+#!csharp
+
+dfPlayers.Columns
+
+#!csharp
+
+dfPlayers.Columns.Select(c => c.Name)
+
+#!csharp
+
+dfPlayers.Columns.Select(c => c.GetType().Name)
+
+#!csharp
+
+dfPlayers.Columns["position"]
+
+#!csharp
+
+dfPlayers["position"]
+
+#!csharp
+
+dfPlayers["position"].Info()
+
+#!csharp
+
+dfPlayers["position"].ValueCounts()
+
+#!csharp
+
+// dfPlayers["position"].Description(); // errors
+dfPlayers["position"].HasDescription()
+
+#!csharp
+
+dfPlayers["height_in_cm"]
+
+#!csharp
+
+dfPlayers["height_in_cm"].Info()
+
+#!csharp
+
+dfPlayers["height_in_cm"].ValueCounts()
+
+#!csharp
+
+dfPlayers["height_in_cm"].Description()
+
+#!csharp
+
+dfPlayers["date_of_birth"].Description()
+
+#!csharp
+
+SingleDataFrameColumn colHeight = (SingleDataFrameColumn)dfPlayers["height_in_cm"];
+colHeight.Description()
+
+#!csharp
+
+float?[] values = ((PrimitiveDataFrameColumn<float>)(colHeight.Description())).ToArray();
+
+float nonNullValues = (float)values[0];
+float? max = values[1];
+float? min = values[2];
+float? mean = values[2];
+
+(nonNullValues, max, min, mean)
+
+#!csharp
+
+var colHeight = (SingleDataFrameColumn)dfPlayers["height_in_cm"];
+float?[] values = colHeight.ToArray();
+values
+
+#!csharp
+
+float?[] values = ((SingleDataFrameColumn)dfPlayers["height_in_cm"]).ToArray();
+values
+
+#!markdown
+
+## Removing Columns
+
+#!csharp
+
+dfPlayers.Columns.Remove("country_of_citizenship");
+dfPlayers.Columns.Select(c => c.Name)
+
+#!csharp
+
+string[] columnsToRemove = {"ColA", "ColB", "ColC"};
+
+foreach (var col in columnsToRemove) 
+{
+    dfPlayers.Columns.Remove(col);
+}
+
+#!markdown
+
+## Renaming Columns
+
+#!csharp
+
+dfPlayers["player_id"].SetName("Id")
+
+#!csharp
+
+dfPlayers["Id"]
+
+#!markdown
+
+## Feature Engineering
+
+#!csharp
+
+dfPlayers.Head(1)
+
+#!csharp
+
+IEnumerable<int?> years = ((DateTimeDataFrameColumn)dfPlayers["date_of_birth"]).Select<DateTime?, int?>(d => d.HasValue ? d.Value.Year : null);
+dfPlayers["BirthYear"] = new Int32DataFrameColumn("BirthYear", years);
+dfPlayers["BirthYear"].ValueCounts()
+
+#!csharp
+
+var colDob = ((DateTimeDataFrameColumn)dfPlayers["date_of_birth"]);
+IEnumerable<int?> years = colDob.Select<DateTime?, int?>(d => d.HasValue ? d.Value.Year : null);
+years
+
+#!csharp
+
+dfPlayers["BirthYear"] = new Int32DataFrameColumn("BirthYear", years)
+
+#!csharp
+
+DateTime.Now.Year - dfPlayers["BirthYear"]
+
+#!csharp
+
+dfPlayers["Age"] = DateTime.Now.Year - dfPlayers["BirthYear"]
+
+#!csharp
+
+var dfAges = DateTime.Now.Year - dfPlayers["BirthYear"];
+dfAges
+
+#!markdown
+
+## Missing Values
+
+#!csharp
+
+dfPlayers["height_in_cm"]
+
+#!csharp
+
+dfPlayers["height_in_cm"].Median()
+
+#!csharp
+
+int medianHeight = (int)dfPlayers["height_in_cm"].Median();
+int meanHeight = (int)Math.Round(dfPlayers["height_in_cm"].Mean());
+
+new {median=medianHeight, mean=meanHeight}
+
+#!csharp
+
+dfPlayers["height_in_cm"] = dfPlayers["height_in_cm"].FillNulls(medianHeight)
+
+#!csharp
+
+// This errors since not every column supports 0 for missing values
+dfPlayers.FillNulls(0)
+
+#!markdown
+
+## Sorting
+
+#!csharp
+
+dfPlayers.Head(1)
+
+#!csharp
+
+dfPlayers.OrderBy("name").Head(3)
+
+#!csharp
+
+dfPlayers.OrderByDescending("name").Head(3)
+
+#!csharp
+
+dfPlayers.Head(5)
+
+#!csharp
+
+dfPlayers = dfPlayers.OrderBy("date_of_birth");
+dfPlayers.Head(3)
+
+#!markdown
+
+## Filtering
+
+#!csharp
+
+var keeperFilter = dfPlayers["position"].ElementwiseEquals("Goalkeeper");
+keeperFilter
+
+#!csharp
+
+keeperFilter.GetType()
+
+#!csharp
+
+dfPlayers.Filter(keeperFilter).Head(5)
+
+#!markdown
+
+## Grouping
+
+#!csharp
+
+DataFrame dfStats = DataFrame.LoadCsv("PlayerGameStats.csv");
+dfStats.Head(5)
+
+#!csharp
+
+dfStats["GamesPlayed"] = new Int32DataFrameColumn("GamesPlayed", Enumerable.Repeat(1, (int)dfStats.Rows.Count))
+
+#!csharp
+
+dfStats.GroupBy("player_id").Sum(new string[] {"minutes_played", "goals", "assists", "yellow_cards", "red_cards", "GamesPlayed"})
+
+#!csharp
+
+var dfStatsByPlayer = dfStats.GroupBy("player_id")
+    .Mean(new[] {"minutes_played", "goals", "assists", "yellow_cards", "red_cards"});
+
+dfStatsByPlayer.Head(5)
+
+#!markdown
+
+## Merging
+
+#!csharp
+
+dfStatsByPlayer.Columns.Select(c => c.Name)
+
+#!csharp
+
+dfPlayers.Columns.Select(c => c.Name)
+
+#!mermaid
+
+erDiagram
+    dfPlayers {
+        int Id
+        string name
+        int current_club_id
+        string country_of_birth
+        DateTime date_of_birth
+        string sub_position
+        string position
+        bool foot
+        int height_in_cm
+        int market_value_in_eur
+        int BirthYear
+        int Age
+    }
+    dfStatsByPlayer {
+        int player_id
+        float minutes_played
+        float goals
+        float assists
+        float yellow_cards
+        float red_cards
+    }
+
+#!csharp
+
+DataFrame dfJoined = dfPlayers.Merge<int>(dfStatsByPlayer, 
+    leftJoinColumn: "Id",
+    rightJoinColumn: "player_id",    
+    joinAlgorithm: JoinAlgorithm.Inner);
+
+dfJoined.Head(5)
+
+#!csharp
+
+dfJoined.Columns.Select(c => c.Name)
+
+#!csharp
+
+dfJoined.Columns.Remove("player_id")
+
+#!csharp
+
+dfJoined.Rows.Count
+
+#!csharp
+
+dfPlayers.Rows.Count
+
+#!markdown
+
+## Filtering
+
+#!csharp
+
+PrimitiveDataFrameColumn<bool> attackFilter = dfJoined["position"].ElementwiseEquals("Attack");
+attackFilter.ValueCounts()
+
+#!csharp
+
+DataFrame dfAttackers = dfJoined.Filter(attackFilter);
+dfAttackers.Head(5)
