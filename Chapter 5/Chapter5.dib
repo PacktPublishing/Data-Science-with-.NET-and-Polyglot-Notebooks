@@ -1,0 +1,379 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"name":"csharp"}]}}
+
+#!markdown
+
+# Chapter 5
+
+#!fsharp
+
+#r "nuget:Microsoft.Data.Analysis,0.21.1"
+
+#!fsharp
+
+open Microsoft.Data.Analysis;
+
+let df = DataFrame.LoadCsv("JoinedStats.csv");
+df.Head(5)
+
+#!fsharp
+
+df.Columns.Remove("Id")
+df.Head(5)
+
+#!markdown
+
+## Descriptive Statistics
+
+#!fsharp
+
+df.Info()
+
+#!fsharp
+
+df.Description()
+
+#!fsharp
+
+df["market_value_in_eur"].Info()
+
+#!fsharp
+
+df["market_value_in_eur"].Description()
+
+#!fsharp
+
+let sortedValues = df["market_value_in_eur"] 
+                |> Seq.cast<single>
+                |> Seq.map float
+                |> Array.ofSeq
+                |> Array.sort
+
+sortedValues
+
+#!fsharp
+
+#r "nuget:MathNet.Numerics,5.0.0"
+
+#!fsharp
+
+open MathNet.Numerics.Statistics
+
+#!fsharp
+
+DescriptiveStatistics(sortedValues)
+
+#!markdown
+
+See documentation at https://numerics.mathdotnet.com/DescriptiveStatistics
+
+#!markdown
+
+## Data Visualization
+
+#!fsharp
+
+#r "nuget:ScottPlot,5.0.25"
+
+#!fsharp
+
+open ScottPlot
+
+// Setup a custom formatter to display plots as images
+open Microsoft.DotNet.Interactive.Formatting
+
+Formatter.Register<ScottPlot.Plot>(
+    (fun (plot: ScottPlot.Plot) (writer: System.IO.TextWriter) ->
+        writer.Write(plot.GetImageHtml(500, 200))),
+    mimeType = "text/html"
+)
+
+#!markdown
+
+## Univariate Analysis
+
+#!markdown
+
+### Box Plot
+
+#!fsharp
+
+let plot = new Plot();
+
+let box = new Box(
+                WhiskerMax = (sortedValues |> Array.max),
+                BoxMax = (sortedValues |> SortedArrayStatistics.UpperQuartile),
+                BoxMiddle = (sortedValues |> SortedArrayStatistics.Median),
+                BoxMin = (sortedValues |> SortedArrayStatistics.LowerQuartile),
+                WhiskerMin = (sortedValues |> Array.min)
+          )
+
+plot.Add.Box(box)
+
+plot.Title "Player Market Value Distribution"
+plot
+
+#!fsharp
+
+let marketValues = df["market_value_in_eur"] |> Seq.cast<single>
+marketValues
+
+#!fsharp
+
+#r "nuget:Plotly.NET,4.2.0"
+
+#!fsharp
+
+#r "nuget: Plotly.NET.Interactive,4.2.1"
+
+#!fsharp
+
+open Plotly.NET
+
+Chart.BoxPlot(Y = marketValues)
+    |> Chart.withTitle "Player Market Value Distribution"
+    |> Chart.withTraceInfo "Market Value"
+    |> Chart.withSize(300, 400)
+
+#!fsharp
+
+Chart.BoxPlot(X = marketValues, BoxPoints = StyleParam.BoxPoints.All, Jitter=0.35)
+    |> Chart.withTitle "Player Market Value Distribution"
+    |> Chart.withTraceInfo "Market Value"
+    |> Chart.withSize(500, 350)
+
+#!markdown
+
+### Violin Chart
+
+#!fsharp
+
+Chart.Violin(X = marketValues)
+    |> Chart.withTitle "Player Market Value Distribution"
+    |> Chart.withTraceInfo "Market Value"
+    |> Chart.withSize(600, 350)
+
+#!fsharp
+
+Chart.Violin(X = marketValues, Points = StyleParam.JitterPoints.All)
+    |> Chart.withTitle "Player Market Value Distribution"
+    |> Chart.withTraceInfo "Market Value"
+    |> Chart.withSize(600, 350)
+
+#!markdown
+
+### Histogram
+
+#!fsharp
+
+Chart.Histogram(X = marketValues)
+    |> Chart.withTitle "Player Market Value Distribution"
+    |> Chart.withSize(500, 300)
+
+#!fsharp
+
+Chart.Histogram(X = marketValues, NBinsX=50)
+    |> Chart.withTitle "Player Market Value Distribution"
+    |> Chart.withSize(500, 300)
+
+#!fsharp
+
+Chart.Histogram(X = marketValues, NBinsX=150)
+    |> Chart.withTitle "Player Market Value Distribution"
+    |> Chart.withSize(500, 300)
+
+#!markdown
+
+## Multivariate Analysis
+
+#!markdown
+
+### Feature Engineering
+
+#!fsharp
+
+df["position"] |> Seq.cast<string> |> Seq.distinct |> Array.ofSeq
+
+#!fsharp
+
+// Let's add some columns for positions
+df["Is Goalkeeper"] <- df["position"].ElementwiseEquals("Goalkeeper")
+df["Is Midfielder"] <- df["position"].ElementwiseEquals("Midfield")
+df["Is Defender"] <- df["position"].ElementwiseEquals("Defender")
+df["Is Attacker"] <- df["position"].ElementwiseEquals("Attack")
+df.Columns
+
+#!markdown
+
+### Univariate Plots with multiple dimensions
+
+#!fsharp
+
+let positions = df["position"] |> Seq.cast<string>
+positions
+
+#!fsharp
+
+Chart.BoxPlot(Y = marketValues, X = positions)
+    |> Chart.withTitle "Player Market Value Distribution by Position"
+    |> Chart.withSize(500, 400)
+
+#!fsharp
+
+Chart.Violin(Y = marketValues, X = positions)
+    |> Chart.withTitle "Player Market Value Distribution by Position"
+    |> Chart.withSize(500, 400)
+
+#!markdown
+
+### Scatter Plot
+
+#!fsharp
+
+let goals = df["goals"] |> Seq.cast<single> |> Seq.map float
+let assists = df["assists"] |> Seq.cast<single> |> Seq.map float
+let playerNames = df["name"] |> Seq.cast<string>
+
+#!fsharp
+
+Chart.Point(x = goals, 
+            y = assists,
+            MultiText = playerNames)
+    |> Chart.withTitle "Goals vs Assists Per Game"
+    |> Chart.withXAxisStyle(TitleText = "Goals")
+    |> Chart.withYAxisStyle(TitleText = "Assists")
+
+#!fsharp
+
+Chart.Point(x = goals, 
+            y = assists,
+            MultiText = playerNames,
+            MarkerColor = (Color.fromColorScaleValues marketValues))
+    |> Chart.withTitle "Goals vs Assists Per Game"
+    |> Chart.withXAxisStyle(TitleText = "Goals")
+    |> Chart.withYAxisStyle(TitleText = "Assists")
+
+#!fsharp
+
+Chart.Point3D(x = goals, 
+              y = assists, 
+              z = marketValues, 
+              MultiText = playerNames,
+              MarkerColor = (Color.fromColorScaleValues marketValues))
+    |> Chart.withTitle "Goals vs Assists vs Valuation"
+    |> Chart.withXAxisStyle(TitleText = "Goals", Id = StyleParam.SubPlotId.Scene 1)
+    |> Chart.withYAxisStyle(TitleText = "Assists", Id = StyleParam.SubPlotId.Scene 1)
+    |> Chart.withZAxisStyle(TitleText = "MarketValue")
+    |> Chart.withSize (800., 600.)
+
+#!markdown
+
+### Correlation Matrix
+
+#!fsharp
+
+df.Columns 
+    |> Seq.map (fun col -> col.Name) 
+    |> Array.ofSeq
+
+#!fsharp
+
+let getSingleFromBool (input: Nullable<bool>): single =
+    match input.HasValue with
+        | false -> 0f
+        | true -> 
+            match input.Value with
+            | true -> 1.0f
+            | false -> 0.0f
+
+let getColumnValue( df: DataFrame, colName: string) : float seq =
+    match df.Columns.[colName] with
+    | :? SingleDataFrameColumn as singleCol ->
+        singleCol 
+        |> Seq.cast<single> 
+        |> Seq.map float
+    | :? PrimitiveDataFrameColumn<bool> as boolCol ->
+        boolCol
+        |> Seq.map getSingleFromBool
+        |> Seq.map float
+    | _ -> // Expand to support additional types as needed
+        Seq.empty<float>
+
+#!fsharp
+
+let IdentifyColumnsToAnalyze (df: DataFrame) =
+    df.Columns 
+    |> Seq.filter (fun col ->
+            let t = col.GetType()
+            t = typeof<SingleDataFrameColumn> || t = typeof<PrimitiveDataFrameColumn<bool>>
+        )
+    |> Seq.map (fun col -> col.Name)
+    |> Array.ofSeq
+
+#!fsharp
+
+let buildCorrelationMatrix (df: DataFrame) =
+    // Figure out what columns we're analyzing
+    let columnsToAnalyze = df |> IdentifyColumnsToAnalyze
+    let numColumns = Array.length columnsToAnalyze
+    
+    // Build a jagged array containing the correlation results
+    let results : float[][] = Array.zeroCreate numColumns
+    for y = 0 to numColumns - 1 do
+        let colY = getColumnValue(df, columnsToAnalyze[y])
+        let rowResults : float[] = Array.create numColumns nan
+        results.[y] <- rowResults
+
+        for x = 0 to y do
+            let colX = getColumnValue(df, columnsToAnalyze[x])
+            rowResults.[x] <- Correlation.Pearson(colX, colY)
+    
+    // Return a tuple with the results and the columns analyzed
+    results, columnsToAnalyze
+
+#!fsharp
+
+let results, correlationColumns = buildCorrelationMatrix(df)
+results
+
+#!fsharp
+
+let plotCorrelationMatrix (correlationMatrix, correlationColumns) =
+    Chart.Heatmap(zData=results, 
+                ReverseYAxis=true,
+                X=correlationColumns,
+                Y=correlationColumns)
+        |> Chart.withTitle "Correlation Matrix"
+
+df 
+|> buildCorrelationMatrix 
+|> plotCorrelationMatrix
+|> Chart.withTitle "Feature Correlations for Football Players"
+
+#!markdown
+
+## SandDance
+
+#!fsharp
+
+#r "nuget:SandDance.InteractiveExtension,1.0.138"
+#r "nuget:DataView.InteractiveExtension,1.0.138"
+
+#!fsharp
+
+open SandDance.InteractiveExtension
+open Microsoft.ML
+open System
+
+let dataResource = df.ToTabularDataResource()
+dataResource
+
+#!fsharp
+
+dataResource.ExploreWithSandDance().Display()
+
+#!fsharp
+
+let explorer = new SandDanceDataExplorer(dataResource)
+explorer

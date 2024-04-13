@@ -399,6 +399,27 @@ dfPlayers.Rows.Count
 
 #!markdown
 
+### Additional Joining
+This section sets us up better for future chapters, but was not included in the book's text to avoid repetition.
+
+#!csharp
+
+DataFrame dfClubs = DataFrame.LoadCsv("Clubs.csv");
+dfClubs
+
+#!csharp
+
+dfJoined = dfJoined.Merge<int>(dfClubs, leftJoinColumn:"current_club_id", rightJoinColumn:"club_id");
+dfJoined.Head(1)
+
+#!csharp
+
+dfJoined.Columns.Remove("current_club_id"); // club_id is descriptive enough
+dfJoined["name_right"].SetName("club_name"); // More readable
+dfJoined.Head(5)
+
+#!markdown
+
 ## Filtering
 
 #!csharp
@@ -410,3 +431,13 @@ attackFilter.ValueCounts()
 
 DataFrame dfAttackers = dfJoined.Filter(attackFilter);
 dfAttackers.Head(5)
+
+#!markdown
+
+---
+
+Final export of the chapter's data. This will be the data source used in Chapter 5
+
+#!csharp
+
+DataFrame.SaveCsv(dfJoined, "JoinedStats.csv")
