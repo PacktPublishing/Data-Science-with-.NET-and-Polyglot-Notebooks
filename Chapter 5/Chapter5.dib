@@ -195,15 +195,6 @@ Chart.Histogram(X = marketValues, NBinsX=150)
 
 df["position"] |> Seq.cast<string> |> Seq.distinct |> Array.ofSeq
 
-#!fsharp
-
-// Let's add some columns for positions
-df["Is Goalkeeper"] <- df["position"].ElementwiseEquals("Goalkeeper")
-df["Is Midfielder"] <- df["position"].ElementwiseEquals("Midfield")
-df["Is Defender"] <- df["position"].ElementwiseEquals("Defender")
-df["Is Attacker"] <- df["position"].ElementwiseEquals("Attack")
-df.Columns
-
 #!markdown
 
 ### Univariate Plots with multiple dimensions
@@ -253,6 +244,7 @@ Chart.Point(x = goals,
     |> Chart.withTitle "Goals vs Assists Per Game"
     |> Chart.withXAxisStyle(TitleText = "Goals")
     |> Chart.withYAxisStyle(TitleText = "Assists")
+    |> Chart.withMarkerStyle (ShowScale = true)
 
 #!fsharp
 
@@ -340,12 +332,51 @@ results
 #!fsharp
 
 let plotCorrelationMatrix (correlationMatrix, correlationColumns) =
-    Chart.Heatmap(zData=results, 
+    Chart.Heatmap(zData=correlationMatrix, 
                 ReverseYAxis=true,
                 X=correlationColumns,
                 Y=correlationColumns)
         |> Chart.withTitle "Correlation Matrix"
 
+df 
+|> buildCorrelationMatrix 
+|> plotCorrelationMatrix
+|> Chart.withTitle "Feature Correlations for Football Players"
+
+#!fsharp
+
+// This shows that age and BirthYear are inversely correlated. Let's remove BirthYear
+df.Columns.Remove("BirthYear")
+
+#!fsharp
+
+let oneHotEncodeColumn (df: DataFrame, column: StringDataFrameColumn) =
+    let values = column |> Seq.distinct
+
+    for v in values do
+        df["Is " + v + "?"] <- column.ElementwiseEquals(v)
+
+#!fsharp
+
+// Let's add some columns for positions
+oneHotEncodeColumn(df, df["position"] :?> StringDataFrameColumn)
+
+#!fsharp
+
+// Let's re-render
+df 
+|> buildCorrelationMatrix 
+|> plotCorrelationMatrix
+|> Chart.withTitle "Feature Correlations for Football Players"
+
+#!fsharp
+
+// Let's add some columns for sub-positions
+oneHotEncodeColumn(df, df["sub_position"] :?> StringDataFrameColumn)
+
+#!fsharp
+
+// Let's re-render
 df 
 |> buildCorrelationMatrix 
 |> plotCorrelationMatrix
