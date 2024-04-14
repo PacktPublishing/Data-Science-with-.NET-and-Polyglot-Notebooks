@@ -10,11 +10,9 @@
 
 #r "nuget:Microsoft.Data.Analysis,0.21.1"
 
-#!fsharp
+open Microsoft.Data.Analysis
 
-open Microsoft.Data.Analysis;
-
-let df = DataFrame.LoadCsv("JoinedStats.csv");
+let df = DataFrame.LoadCsv("JoinedStats.csv")
 df.Head(5)
 
 #!fsharp
@@ -68,6 +66,18 @@ DescriptiveStatistics(sortedValues)
 
 See documentation at https://numerics.mathdotnet.com/DescriptiveStatistics
 
+#!fsharp
+
+SortedArrayStatistics.Median(sortedValues)
+
+#!fsharp
+
+SortedArrayStatistics.LowerQuartile(sortedValues)
+
+#!fsharp
+
+SortedArrayStatistics.UpperQuartile(sortedValues)
+
 #!markdown
 
 ## Data Visualization
@@ -76,15 +86,23 @@ See documentation at https://numerics.mathdotnet.com/DescriptiveStatistics
 
 #r "nuget:ScottPlot,5.0.25"
 
+#!markdown
+
+When running on Linux you may require this additional dependency
+
+#!fsharp
+
+// #r "nuget:SkiaSharp.NativeAssets.Linux.NoDependencies"
+
 #!fsharp
 
 open ScottPlot
-
-// Setup a custom formatter to display plots as images
+open System.IO
 open Microsoft.DotNet.Interactive.Formatting
 
+// Setup a custom formatter to display plots as images
 Formatter.Register<ScottPlot.Plot>(
-    (fun (plot: ScottPlot.Plot) (writer: System.IO.TextWriter) ->
+    (fun (plot: ScottPlot.Plot) (writer: TextWriter) ->
         writer.Write(plot.GetImageHtml(500, 200))),
     mimeType = "text/html"
 )
@@ -100,18 +118,16 @@ Formatter.Register<ScottPlot.Plot>(
 #!fsharp
 
 let plot = new Plot();
-
-let box = new Box(
-                WhiskerMax = (sortedValues |> Array.max),
-                BoxMax = (sortedValues |> SortedArrayStatistics.UpperQuartile),
-                BoxMiddle = (sortedValues |> SortedArrayStatistics.Median),
-                BoxMin = (sortedValues |> SortedArrayStatistics.LowerQuartile),
-                WhiskerMin = (sortedValues |> Array.min)
-          )
-
-plot.Add.Box(box)
-
 plot.Title "Player Market Value Distribution"
+
+plot.Add.Box(new Box(
+      WhiskerMax = (sortedValues |> Array.max),
+      BoxMax = (sortedValues |> SortedArrayStatistics.UpperQuartile),
+      BoxMiddle = (sortedValues |> SortedArrayStatistics.Median),
+      BoxMin = (sortedValues |> SortedArrayStatistics.LowerQuartile),
+      WhiskerMin = (sortedValues |> Array.min)
+))
+
 plot
 
 #!fsharp
@@ -189,20 +205,16 @@ Chart.Histogram(X = marketValues, NBinsX=150)
 
 #!markdown
 
-### Feature Engineering
-
-#!fsharp
-
-df["position"] |> Seq.cast<string> |> Seq.distinct |> Array.ofSeq
-
-#!markdown
-
 ### Univariate Plots with multiple dimensions
 
 #!fsharp
 
 let positions = df["position"] |> Seq.cast<string>
-positions
+let clubs = df["club_name"] |> Seq.cast<string>
+let goals = df["goals"] |> Seq.cast<single> |> Seq.map float
+let assists = df["assists"] |> Seq.cast<single> |> Seq.map float
+let minutesPerGame = df["minutes_played"] |> Seq.cast<single> |> Seq.map float
+let playerNames = df["name"] |> Seq.cast<string>
 
 #!fsharp
 
@@ -212,9 +224,21 @@ Chart.BoxPlot(Y = marketValues, X = positions)
 
 #!fsharp
 
-Chart.Violin(Y = marketValues, X = positions)
+Chart.Violin(Y = marketValues, X = positions, MultiText=playerNames)
     |> Chart.withTitle "Player Market Value Distribution by Position"
     |> Chart.withSize(500, 400)
+
+#!fsharp
+
+Chart.BoxPlot(Y = marketValues, X = clubs, MultiText=playerNames)
+    |> Chart.withTitle "Market Value by Club"
+    |> Chart.withSize(700, 400)
+
+#!fsharp
+
+Chart.BoxPlot(Y = goals, X = clubs, MultiText=playerNames)
+    |> Chart.withTitle "Goals per game by Club"
+    |> Chart.withSize(700, 400)
 
 #!markdown
 
@@ -222,9 +246,12 @@ Chart.Violin(Y = marketValues, X = positions)
 
 #!fsharp
 
-let goals = df["goals"] |> Seq.cast<single> |> Seq.map float
-let assists = df["assists"] |> Seq.cast<single> |> Seq.map float
-let playerNames = df["name"] |> Seq.cast<string>
+Chart.Point(x = goals, 
+            y = minutesPerGame,
+            MultiText = playerNames)
+    |> Chart.withTitle "Goals per Game vs Minutes per Game"
+    |> Chart.withXAxisStyle(TitleText = "Goals per Game")
+    |> Chart.withYAxisStyle(TitleText = "Minutes per Game")
 
 #!fsharp
 
