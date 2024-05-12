@@ -204,3 +204,37 @@ erDiagram
     player_game_stats }o--|| clubs : "associated with"
     player_game_stats }o--|| players : "associated with"
     clubs |o--|{ players : "belongs to"
+
+#!mermaid
+
+erDiagram
+    club_games {
+        int club_game_id
+        int club_id
+        bool is_home
+        int opponent_club_id
+        int goals_for
+        int goals_against
+        string formation
+        string result
+    }
+
+    clubs {
+        int club_id
+        string name
+    }
+
+    player_game_stats {
+        int player_id
+        int club_game_id
+        date date
+        string competiton_id
+        int yellow_cards
+        int red_cards
+        int goals
+        int assists
+        int minutes_played
+    }
+
+    club_games }o--|{ clubs : "appears in"
+    player_game_stats }o--|| clubs : "associated with"

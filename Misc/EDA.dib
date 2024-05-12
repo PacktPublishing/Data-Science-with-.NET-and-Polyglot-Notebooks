@@ -28,7 +28,8 @@ competition.ValueCounts()
 #!csharp
 
 // British Premier League
-dfClubs.Filter(dfClubs["domestic_competition_id"].ElementwiseEquals("GB1"))
+dfClubs = dfClubs.Filter(dfClubs["domestic_competition_id"].ElementwiseEquals("GB1"));
+dfClubs.Head(5)
 
 #!csharp
 

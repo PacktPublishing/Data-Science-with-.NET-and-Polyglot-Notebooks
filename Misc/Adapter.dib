@@ -134,7 +134,16 @@ dfPlayers.Columns.Select(c => c.Name)
 
 #!csharp
 
-dfPlayers.Head(5)
+dfPlayers.Rows[0]["country_of_birth"] = "US";
+dfPlayers.Rows[1]["country_of_birth"] = "United States";
+dfPlayers.Rows[2]["country_of_birth"] = "Untied States";
+dfPlayers.Rows[3]["country_of_birth"] = "USA";
+dfPlayers.Rows[4]["country_of_birth"] = "U.S.";
+dfPlayers.Rows[5]["country_of_birth"] = "America";
+
+#!csharp
+
+dfPlayers.Head(6)
 
 #!csharp
 
@@ -365,7 +374,11 @@ foreach (var row in dfPlayers.Rows) {
     row["name"] = faker.Parse("{{name.firstName(Male)}} {{name.lastName(Male)}}");
 }
 
-dfPlayers.Head(5)
+dfPlayers.Head(6)
+
+#!csharp
+
+dfClubs
 
 #!csharp
 
@@ -373,18 +386,16 @@ string[] clubNames = new[] {
     "Purple Cobras",
     "Dancing Lemurs",
     "Raging Wildabeasts",
-    "Flying Squirrels",
     "Hidden Dragons",
     "Diamond Dogs",
+    "Flying Squirrels",
     "Blue Foxes",
-    "Thrashing Crocs"
+    "Metal Lions"
 };
 
 int i = 0;
 foreach (var row in dfClubs.Rows) {
-    Randomizer.Seed = new Random(++i + 100);
-    Faker faker = new();
-    row["name"] = faker.Address.City();
+    row["name"] = clubNames[i++];
 }
 
 dfClubs
