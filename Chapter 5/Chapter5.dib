@@ -18,6 +18,7 @@ df.Head(5)
 #!fsharp
 
 df.Columns.Remove("Id")
+df.Columns.Remove("club_id")
 df.Head(5)
 
 #!markdown
@@ -133,7 +134,13 @@ plot
 #!fsharp
 
 let marketValues = df["market_value_in_eur"] |> Seq.cast<single>
-marketValues
+let positions = df["position"] |> Seq.cast<string>
+let clubs = df["club_name"] |> Seq.cast<string>
+let goals = df["goals"] |> Seq.cast<single>
+let assists = df["assists"] |> Seq.cast<single>
+let minutesPerGame = df["minutes_played"] |> Seq.cast<single>
+let playerNames = df["name"] |> Seq.cast<string>
+let redCards = df["red_cards"] |> Seq.cast<single>
 
 #!fsharp
 
@@ -154,7 +161,17 @@ Chart.BoxPlot(Y = marketValues)
 
 #!fsharp
 
-Chart.BoxPlot(X = marketValues, BoxPoints = StyleParam.BoxPoints.All, Jitter=0.35)
+Chart.BoxPlot(X = marketValues, MultiText=playerNames)
+    |> Chart.withTitle "Player Market Value Distribution"
+    |> Chart.withTraceInfo "Market Value"
+    |> Chart.withSize(400, 300)
+
+#!fsharp
+
+Chart.BoxPlot(X = marketValues, 
+              BoxPoints = StyleParam.BoxPoints.All, 
+              MultiText=playerNames,
+              Jitter=0.35)
     |> Chart.withTitle "Player Market Value Distribution"
     |> Chart.withTraceInfo "Market Value"
     |> Chart.withSize(500, 350)
@@ -209,24 +226,21 @@ Chart.Histogram(X = marketValues, NBinsX=150)
 
 #!fsharp
 
-let positions = df["position"] |> Seq.cast<string>
-let clubs = df["club_name"] |> Seq.cast<string>
-let goals = df["goals"] |> Seq.cast<single> |> Seq.map float
-let assists = df["assists"] |> Seq.cast<single> |> Seq.map float
-let minutesPerGame = df["minutes_played"] |> Seq.cast<single> |> Seq.map float
-let playerNames = df["name"] |> Seq.cast<string>
-
-#!fsharp
-
 Chart.BoxPlot(Y = marketValues, X = positions)
     |> Chart.withTitle "Player Market Value Distribution by Position"
-    |> Chart.withSize(500, 400)
+    |> Chart.withSize(500, 350)
 
 #!fsharp
 
-Chart.Violin(Y = marketValues, X = positions, MultiText=playerNames)
+Chart.Violin(Y = marketValues, X = positions)
     |> Chart.withTitle "Player Market Value Distribution by Position"
-    |> Chart.withSize(500, 400)
+    |> Chart.withSize(500, 350)
+
+#!fsharp
+
+Chart.BoxPlot(Y = minutesPerGame, X = positions)
+    |> Chart.withTitle "Playtime by Position"
+    |> Chart.withSize(500, 350)
 
 #!fsharp
 
@@ -255,12 +269,35 @@ Chart.Point(x = goals,
 
 #!fsharp
 
+Chart.Point(x = minutesPerGame, 
+            y = marketValues,
+            MultiText = playerNames)
+    |> Chart.withTitle "Market Valuation vs Playtime"
+    |> Chart.withSize(600, 400)    
+    |> Chart.withXAxisStyle(TitleText = "Minutes per Game")
+    |> Chart.withYAxisStyle(TitleText = "Market Valuation")
+
+#!fsharp
+
 Chart.Point(x = goals, 
             y = assists,
             MultiText = playerNames)
     |> Chart.withTitle "Goals vs Assists Per Game"
-    |> Chart.withXAxisStyle(TitleText = "Goals")
-    |> Chart.withYAxisStyle(TitleText = "Assists")
+    |> Chart.withSize(400, 400)    
+    |> Chart.withXAxisStyle(TitleText = "Goals", MinMax=(0,2))
+    |> Chart.withYAxisStyle(TitleText = "Assists", MinMax=(0,2))
+
+#!fsharp
+
+Chart.Point(x = goals, 
+            y = assists,
+            MultiText = playerNames,
+            MarkerColor = (Color.fromColorScaleValues minutesPerGame))
+    |> Chart.withTitle "Goals vs Assists Colorized by Play Time"
+    |> Chart.withSize(400, 400)    
+    |> Chart.withXAxisStyle(TitleText = "Goals", MinMax=(-0.1,1.6))
+    |> Chart.withYAxisStyle(TitleText = "Assists", MinMax=(-0.1,1.6))
+    |> Chart.withMarkerStyle(ShowScale = true)
 
 #!fsharp
 
@@ -268,10 +305,11 @@ Chart.Point(x = goals,
             y = assists,
             MultiText = playerNames,
             MarkerColor = (Color.fromColorScaleValues marketValues))
-    |> Chart.withTitle "Goals vs Assists Per Game"
-    |> Chart.withXAxisStyle(TitleText = "Goals")
-    |> Chart.withYAxisStyle(TitleText = "Assists")
-    |> Chart.withMarkerStyle (ShowScale = true)
+    |> Chart.withTitle "Goals vs Assists Colorized by Valuation"
+    |> Chart.withSize(400, 400)    
+    |> Chart.withXAxisStyle(TitleText = "Goals", MinMax=(-0.1,1.6))
+    |> Chart.withYAxisStyle(TitleText = "Assists", MinMax=(-0.1,1.6))
+    |> Chart.withMarkerStyle(ShowScale = true)
 
 #!fsharp
 
@@ -284,7 +322,20 @@ Chart.Point3D(x = goals,
     |> Chart.withXAxisStyle(TitleText = "Goals", Id = StyleParam.SubPlotId.Scene 1)
     |> Chart.withYAxisStyle(TitleText = "Assists", Id = StyleParam.SubPlotId.Scene 1)
     |> Chart.withZAxisStyle(TitleText = "MarketValue")
-    |> Chart.withSize (800., 600.)
+    |> Chart.withSize (800, 600)
+
+#!fsharp
+
+Chart.Point3D(x = goals, 
+              y = assists, 
+              z = marketValues, 
+              MultiText = playerNames,
+              MarkerColor = (Color.fromColorScaleValues minutesPerGame))
+    |> Chart.withTitle "Goals vs Assists vs Valuation"
+    |> Chart.withXAxisStyle(TitleText = "Goals", Id = StyleParam.SubPlotId.Scene 1)
+    |> Chart.withYAxisStyle(TitleText = "Assists", Id = StyleParam.SubPlotId.Scene 1)
+    |> Chart.withZAxisStyle(TitleText = "MarketValue")
+    |> Chart.withSize (800, 600)
 
 #!markdown
 
@@ -292,8 +343,72 @@ Chart.Point3D(x = goals,
 
 #!fsharp
 
+Correlation.Pearson(goals |> Seq.map float, 
+                    assists |> Seq.map float)
+
+#!fsharp
+
+Correlation.Pearson(assists |> Seq.map float, 
+                    redCards |> Seq.map float)
+
+#!fsharp
+
 df.Columns 
     |> Seq.map (fun col -> col.Name) 
+    |> Array.ofSeq
+
+#!fsharp
+
+let columnsToAnalyze = 
+    df.Columns 
+    |> Seq.filter (fun col -> col.GetType() =typeof<SingleDataFrameColumn>)
+    |> Seq.map (fun col -> col.Name)
+    |> Array.ofSeq
+
+let numColumns = Array.length columnsToAnalyze
+
+columnsToAnalyze
+
+#!fsharp
+
+let results : float[][] = Array.zeroCreate numColumns
+for y = 0 to numColumns - 1 do
+    let colY = df[columnsToAnalyze[y]] 
+                |> Seq.cast<single> 
+                |> Seq.map float
+    let rowResults : float[] = Array.create numColumns nan
+    results.[y] <- rowResults
+
+    for x = 0 to y do
+        let colX = df[columnsToAnalyze[x]]
+                        |> Seq.cast<single> 
+                        |> Seq.map float
+        rowResults.[x] <- Correlation.Pearson(colX, colY)
+
+results
+
+#!fsharp
+
+Chart.Heatmap(zData=results, 
+            ReverseYAxis=true,
+            X=columnsToAnalyze,
+            Y=columnsToAnalyze)
+    |> Chart.withTitle "Correlation Matrix"
+
+#!markdown
+
+## More complex version
+Function-oriented and supports boolean columns as well
+
+#!fsharp
+
+let IdentifyColumnsToAnalyze (df: DataFrame) =
+    df.Columns 
+    |> Seq.filter (fun col ->
+            let t = col.GetType()
+            t = typeof<SingleDataFrameColumn> || t = typeof<PrimitiveDataFrameColumn<bool>>
+        )
+    |> Seq.map (fun col -> col.Name)
     |> Array.ofSeq
 
 #!fsharp
@@ -318,17 +433,6 @@ let getColumnValue( df: DataFrame, colName: string) : float seq =
         |> Seq.map float
     | _ -> // Expand to support additional types as needed
         Seq.empty<float>
-
-#!fsharp
-
-let IdentifyColumnsToAnalyze (df: DataFrame) =
-    df.Columns 
-    |> Seq.filter (fun col ->
-            let t = col.GetType()
-            t = typeof<SingleDataFrameColumn> || t = typeof<PrimitiveDataFrameColumn<bool>>
-        )
-    |> Seq.map (fun col -> col.Name)
-    |> Array.ofSeq
 
 #!fsharp
 
@@ -374,6 +478,11 @@ df
 
 // This shows that age and BirthYear are inversely correlated. Let's remove BirthYear
 df.Columns.Remove("BirthYear")
+
+#!markdown
+
+## One Hot Encoding
+Let's add some boolean columns
 
 #!fsharp
 
