@@ -1,0 +1,181 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"name":"csharp"}]}}
+
+#!csharp
+
+#r "nuget:Microsoft.Data.Analysis"
+
+#!csharp
+
+using Microsoft.Data.Analysis;
+
+DataFrame df_appearances = DataFrame.LoadCsv("../data/original/appearances.csv");
+
+df_appearances.Head(5)
+
+#!csharp
+
+DataFrame df_games = DataFrame.LoadCsv("../data/original/games.csv", guessRows: 20);
+
+df_games.Head(5)
+
+#!csharp
+
+// Filter out columns we don't want for merging
+foreach (var col in df_games.Columns.ToList()) {
+    if (col.Name == "game_id" || col.Name == "season") continue;
+    df_games.Columns.Remove(col);
+}
+df_games.Head(5)
+
+#!csharp
+
+DataFrame df_game_appearances = df_appearances.Merge<int>(df_games, leftJoinColumn: "game_id", rightJoinColumn: "game_id", leftSuffix: "");
+df_game_appearances.Columns.Remove("game_id_right");
+df_game_appearances.Head(5)
+
+#!csharp
+
+// Let's add a count of games so we can sum it later
+df_game_appearances["games"] = new Int32DataFrameColumn("games", Enumerable.Repeat<int>(1, (int)df_game_appearances.Rows.Count))
+
+#!csharp
+
+// DataFrame doesn't allow multi-level grouping yet, so we'll composite the player and season into a single column
+IEnumerable<string> keys = df_game_appearances.Rows.Select(a => a["player_id"] + "_" + a["season"]);
+df_game_appearances.Columns.Add(new StringDataFrameColumn("player_season", keys));
+
+df_game_appearances.Head(5)
+
+#!csharp
+
+DataFrame df_grouped = df_game_appearances.GroupBy("player_season").Sum(["yellow_cards", "red_cards", "goals", "assists", "minutes_played", "games"]);
+df_grouped.Head(5)
+
+#!csharp
+
+IEnumerable<float> ids = df_grouped.Rows.Select(a => float.Parse(a["player_season"].ToString().Split('_')[0]));
+df_grouped["player_id"] = new SingleDataFrameColumn("player_id", ids)
+
+#!csharp
+
+IEnumerable<int> seasons = df_grouped.Rows.Select(a => int.Parse(a["player_season"].ToString().Split('_')[1]));
+df_grouped["season"] = new Int32DataFrameColumn("season", seasons)
+
+#!csharp
+
+df_grouped = df_grouped.OrderBy("player_season");
+df_grouped.Columns.Remove("player_season");
+df_grouped.Head(5)
+
+#!csharp
+
+DataFrame df_players = DataFrame.LoadCsv("../Chapter 5/JoinedStats.csv");
+
+df_players.Head(5)
+
+#!csharp
+
+// Filter out columns we don't want for merging
+foreach (var col in df_players.Columns.ToList()) {
+    if (col.Name == "Id" || col.Name == "position" || col.Name == "Age") continue;
+    df_players.Columns.Remove(col);
+}
+df_players.Head(5)
+
+#!csharp
+
+df_grouped["player_id"]
+
+#!csharp
+
+var df_new = df_grouped.Merge<int>(df_players, leftJoinColumn: "player_id", rightJoinColumn: "Id", leftSuffix: "", joinAlgorithm: JoinAlgorithm.Right);
+df_new.Head(5)
+
+#!csharp
+
+df_new.Columns.Remove("Id")
+
+#!csharp
+
+List<bool> lastSeasons = new();
+List<float?> yellowDiff = new();
+List<float?> redDiff = new();
+List<float?> goalDiff = new();
+List<float?> assistDiff = new();
+List<float?> minutesDiff = new();
+List<int?> gamesDiff = new();
+
+List<DataFrameRow> rows = df_new.Rows.ToList();
+
+DataFrameRow? lastRow = null;
+float? lastPlayerId = null;
+
+foreach (var row in rows) 
+{
+    float playerId = (float)row["player_id"];
+    if (playerId != lastPlayerId) 
+    {
+        lastRow = null;
+        if (lastPlayerId != null) {
+            lastSeasons.Add(true);
+        }
+    } else {
+        lastSeasons.Add(false);
+    }
+
+    int season = (int)row["season"];
+    if (lastRow != null) 
+    {
+        yellowDiff.Add((float)row["yellow_cards"] - (float)lastRow["yellow_cards"]);
+        redDiff.Add((float)row["red_cards"] - (float)lastRow["red_cards"]);
+        goalDiff.Add((float)row["goals"] - (float)lastRow["goals"]);
+        assistDiff.Add((float)row["assists"] - (float)lastRow["assists"]);
+        minutesDiff.Add((float)row["minutes_played"] - (float)lastRow["minutes_played"]);
+        gamesDiff.Add((int)row["games"] - (int)lastRow["games"]);        
+    } else {
+        yellowDiff.Add(null);
+        redDiff.Add(null);
+        goalDiff.Add(null);
+        assistDiff.Add(null);
+        minutesDiff.Add(null);
+        gamesDiff.Add(null);
+    }
+
+    lastRow = row;
+    lastPlayerId = playerId;
+}
+
+lastSeasons.Add(true);
+(lastSeasons.Count, gamesDiff.Count)
+
+#!csharp
+
+df_new.Columns.Add(new PrimitiveDataFrameColumn<float>("yellow_diff", yellowDiff));
+df_new.Columns.Add(new PrimitiveDataFrameColumn<float>("red_diff", redDiff));
+df_new.Columns.Add(new PrimitiveDataFrameColumn<float>("goals_diff", goalDiff));
+df_new.Columns.Add(new PrimitiveDataFrameColumn<float>("assists_diff", assistDiff));
+df_new.Columns.Add(new PrimitiveDataFrameColumn<float>("minutes_played_diff", minutesDiff));
+df_new.Columns.Add(new PrimitiveDataFrameColumn<int>("games_played_diff", gamesDiff));
+df_new.Columns.Add(new BooleanDataFrameColumn("is_last_season", lastSeasons));
+
+#!csharp
+
+float? lastAge = null;
+float? lastId = null;
+
+foreach (var row in df_new.Rows.Reverse()) {
+    float id = (float)row["player_id"];
+
+    if (id == lastId && lastAge.HasValue) {
+        row["Age"] = lastAge - 1;
+    }
+
+    lastAge = (float)row["Age"];
+    lastId = id;
+}
+
+#!csharp
+
+DataFrame.SaveCsv(df_new, "../data/season_stats.csv")
