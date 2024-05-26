@@ -517,30 +517,3 @@ df
 |> buildCorrelationMatrix 
 |> plotCorrelationMatrix
 |> Chart.withTitle "Feature Correlations for Football Players"
-
-#!markdown
-
-## SandDance
-
-#!fsharp
-
-#r "nuget:SandDance.InteractiveExtension,1.0.138"
-#r "nuget:DataView.InteractiveExtension,1.0.138"
-
-#!fsharp
-
-open SandDance.InteractiveExtension
-open Microsoft.ML
-open System
-
-let dataResource = df.ToTabularDataResource()
-dataResource
-
-#!fsharp
-
-dataResource.ExploreWithSandDance().Display()
-
-#!fsharp
-
-let explorer = new SandDanceDataExplorer(dataResource)
-explorer
