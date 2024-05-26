@@ -310,6 +310,10 @@ keeperFilter.GetType()
 
 dfPlayers.Filter(keeperFilter).Head(5)
 
+#!csharp
+
+dfPlayers.Head(5)
+
 #!markdown
 
 ## Grouping
@@ -416,6 +420,50 @@ dfJoined.Head(1)
 
 dfJoined.Columns.Remove("current_club_id"); // club_id is descriptive enough
 dfJoined["name_right"].SetName("club_name"); // More readable
+dfJoined.Head(5)
+
+#!csharp
+
+DataFrame dfClubGames = DataFrame.LoadCsv("ClubGames.csv");
+dfClubGames.Head(5)
+
+#!csharp
+
+// Representing wins and losses as separte numeric columns since ties are possible. Numeric columns can be easily averaged to get win / loss rates
+dfClubGames["WinRate"] = new Int32DataFrameColumn("Wins", ((PrimitiveDataFrameColumn<bool>)dfClubGames["Result"].ElementwiseEquals(0f)).Select<bool?, int>(b => b == true ? 1 : 0));
+dfClubGames["LossRate"] = new Int32DataFrameColumn("Wins", ((PrimitiveDataFrameColumn<bool>)dfClubGames["Result"].ElementwiseEquals(1f)).Select<bool?, int>(b => b == true ? 1 : 0));
+
+dfClubGames.Head(5)
+
+#!csharp
+
+DataFrame dfClubGamesAgg = dfClubGames.GroupBy("ClubId").Mean(new[] {"WinRate", "LossRate", "GoalsFor", "GoalsAgainst"});
+dfClubGamesAgg.Head(5)
+
+#!csharp
+
+// Add in win rate, loss rate, goals for, and goals against
+dfJoined = dfJoined.Merge<int>(dfClubGamesAgg, leftJoinColumn: "club_id", rightJoinColumn:"ClubId", leftSuffix: "");
+dfJoined.Head(5)
+
+#!csharp
+
+dfJoined.Columns.Remove("club_id");
+dfJoined.Columns["name_left"].SetName("Name");
+dfJoined.Columns["country_of_birth"].SetName("BirthCountry");
+dfJoined.Columns["date_of_birth"].SetName("DateOfBirth");
+dfJoined.Columns["sub_position"].SetName("SubPosition");
+dfJoined.Columns["position"].SetName("Position");
+dfJoined.Columns["height_in_cm"].SetName("Height");
+dfJoined.Columns["market_value_in_eur"].SetName("MarketValue");
+dfJoined.Columns["minutes_played"].SetName("MinutesPlayed");
+dfJoined.Columns["foot"].SetName("Foot");
+dfJoined.Columns["goals"].SetName("Goals");
+dfJoined.Columns["assists"].SetName("Assists");
+dfJoined.Columns["yellow_cards"].SetName("YellowCards");
+dfJoined.Columns["red_cards"].SetName("RedCards");
+dfJoined.Columns["club_name"].SetName("ClubName");
+
 dfJoined.Head(5)
 
 #!markdown
