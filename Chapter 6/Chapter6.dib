@@ -1,0 +1,198 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"name":"csharp"}]}}
+
+#!markdown
+
+# Chapter 6
+
+#!mermaid
+
+flowchart TD
+    data[Data]
+    algorithm[Algorithm Selection]
+    data -- trains --> algorithm -- results in --> model[Trained Model]
+    hyper[Hyperparameters] -- configure --> algorithm
+
+#!mermaid
+
+flowchart TD
+    data[Data] --> split[Train / Test Split]
+    split -- 70 to 90% --> trainData[Training Data]
+    split -- 10 to 30% --> testData[Test Data]
+    algorithm[Algorithm Selection]
+    trainData -- trains --> algorithm -- results in --> model[Trained Model]
+    testData -- validates --> model -- produces --> metrics[Evaluation Metrics]
+    hyper[Hyperparameters] -- configure --> algorithm
+
+#!csharp
+
+#r "nuget:Microsoft.Data.Analysis,0.21.1"
+
+using Microsoft.Data.Analysis;
+
+DataFrame df = DataFrame.LoadCsv("PlayerRetirement.csv");
+
+// The first 12 rows follow a player's career in our dataset
+df.Head(12)
+
+#!csharp
+
+df.Columns.Remove("PlayerId");
+df.Columns.Remove("Season");
+
+#!csharp
+
+#r "nuget:Microsoft.ML,3.0.1"
+
+using Microsoft.ML;
+using Microsoft.ML.Data;
+
+#!csharp
+
+MLContext context = new();
+IDataView data = df;
+
+var dataSplit = context.Data.TrainTestSplit(data, 
+    testFraction: 0.3, 
+    seed: 123);
+    
+IDataView trainData = dataSplit.TrainSet;
+IDataView testData = dataSplit.TestSet;
+
+#!csharp
+
+#r "nuget:Microsoft.ML.AutoML,0.21.1"
+
+using Microsoft.ML.AutoML;
+
+#!csharp
+
+uint maxSeconds = 10;
+BinaryExperimentSettings settings = new() {
+    MaxExperimentTimeInSeconds = maxSeconds,
+    //MaxModels = 1,
+    OptimizingMetric = BinaryClassificationMetric.F1Score,
+};
+settings
+
+#!csharp
+
+BinaryClassificationExperiment binaryExperiment = 
+    context.Auto().CreateBinaryClassificationExperiment(settings);
+
+string label = "IsLastSeason";
+ExperimentResult<BinaryClassificationMetrics> result = 
+    binaryExperiment.Execute(trainData, testData, labelColumnName: label);
+
+result
+
+#!csharp
+
+result.RunDetails.Count()
+
+#!csharp
+
+RunDetail<BinaryClassificationMetrics> bestRun = result.BestRun;
+bestRun
+
+#!csharp
+
+BinaryClassificationMetrics runMetrics = bestRun.ValidationMetrics;
+
+runMetrics.ConfusionMatrix.GetFormattedConfusionTable()
+
+#!csharp
+
+runMetrics
+
+#!csharp
+
+TransformerChain<ITransformer> bestModel = bestRun.Model as TransformerChain<ITransformer>;
+bestModel
+
+#!csharp
+
+var importance = context.BinaryClassification
+	.PermutationFeatureImportanceNonCalibrated(
+		bestModel, 
+	    bestModel.Transform(testData), 
+	    labelColumnName: label,
+	    permutationCount: 3);
+
+var orderedFeatures = importance.OrderByDescending(k => Math.Abs(k.Value.F1Score.Mean));
+foreach (var kvp in orderedFeatures) {
+    Console.WriteLine($"{kvp.Key} {kvp.Value.F1Score.Mean}");
+}
+
+#!csharp
+
+public class PlayerSeason {
+    public float YellowCards {get; set;}
+    public float RedCards {get; set;}
+    public float Goals {get; set;}
+    public float Assists {get; set;}
+    public float MinutesPlayed {get; set;}
+    public float Games {get; set;}
+    public string Position {get; set;}
+    public float Age {get; set;}
+    public float YellowDiff {get; set;}
+    public float RedDiff {get; set;}
+    public float GoalsDiff {get; set;}
+    public float AssistsDiff {get; set;}
+    public float MinutesPlayedDiff {get; set;}
+    public float GamesDiff {get; set;}
+    public bool IsLastSeason {get; set;}
+}
+
+#!csharp
+
+public class RetirementPrediction {
+    public bool PredictedLabel {get; set;}
+}
+
+#!csharp
+
+var predictionEngine = context.Model.CreatePredictionEngine<PlayerSeason, RetirementPrediction>(bestModel, trainData.Schema);
+
+#!csharp
+
+PlayerSeason season = new() {
+    YellowCards = 5,
+    RedCards = 2, 
+    Goals = 1,
+    Assists = 3,
+    MinutesPlayed = 1814,
+    Games = 21, 
+    Position = "Midfield",
+    Age = 40,
+    YellowDiff = 3,
+    RedDiff = 1,
+    GoalsDiff = -6, 
+    AssistsDiff = -12,
+    MinutesPlayedDiff = -450,
+    GamesDiff = -6
+};
+RetirementPrediction prediction = predictionEngine.Predict(season);
+prediction
+
+#!csharp
+
+PlayerSeason season = new() {
+    YellowCards = 5,
+    RedCards = 2, 
+    Goals = 1,
+    Assists = 3,
+    MinutesPlayed = 2200,
+    Games = 26, 
+    Position = "Midfield",
+    Age = 40,
+    YellowDiff = 3,
+    RedDiff = 1,
+    GoalsDiff = 0, 
+    AssistsDiff = -12,
+    MinutesPlayedDiff = 0,
+    GamesDiff = 0
+};
+RetirementPrediction prediction = predictionEngine.Predict(season);
+prediction
