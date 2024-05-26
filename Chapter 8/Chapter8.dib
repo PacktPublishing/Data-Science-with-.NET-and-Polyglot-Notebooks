@@ -1,0 +1,94 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"name":"csharp"}]}}
+
+#!markdown
+
+# Chapter 8
+
+#!csharp
+
+#r "nuget:Microsoft.Data.Analysis,0.21.1"
+
+using Microsoft.Data.Analysis;
+
+DataFrame df = DataFrame.LoadCsv("training.csv");
+df.Columns.Remove("Name");
+df.Head(5)
+
+#!csharp
+
+#r "nuget:Microsoft.ML,3.0.1"
+#r "nuget:Microsoft.ML.AutoML,0.21.1"
+
+using Microsoft.ML;
+using Microsoft.ML.Data;
+using Microsoft.ML.AutoML;
+
+MLContext context = new();
+
+#!csharp
+
+df.Columns.Select(c => c.Name).ToArray().Reverse()
+
+#!csharp
+
+string label = "CurrentPay";
+
+List<string> textColumns = new();
+List<string> numericColumns = new();
+
+foreach (var col in df.Columns)
+{
+    // We do not want our label column being treated as a feature
+    if (col.Name == label)
+    {
+        continue;
+    }
+
+    if (col.GetType() == typeof(StringDataFrameColumn))
+    {
+        textColumns.Add(col.Name);
+    }
+    else
+    {
+        numericColumns.Add(col.Name);
+    }
+}
+
+(textColumns, numericColumns)
+
+#!csharp
+
+SweepablePipeline pipeline = context.Auto()
+    .Featurizer(df, numericColumns: numericColumns.ToArray(), textColumns: textColumns.ToArray())
+    .Append(context.Auto().Regression(labelColumnName: label));
+
+#!csharp
+
+DataOperationsCatalog.TrainTestData split = 
+    context.Data.TrainTestSplit(df, testFraction: 0.2);
+
+#!csharp
+
+AutoMLExperiment experiment = context.Auto().CreateExperiment();
+TrialResult result =
+    experiment.SetPipeline(pipeline)
+              .SetRegressionMetric(RegressionMetric.RSquared, labelColumn: label)
+              .SetTrainingTimeInSeconds(10)
+              .SetDataset(split)
+              .Run();
+
+#!csharp
+
+result.Metric
+
+#!csharp
+
+result.Model
+
+#!csharp
+
+IDataView transformedTest = result.Model.Transform(split.TestSet);
+
+context.Regression.Evaluate(transformedTest, labelColumnName: label)
