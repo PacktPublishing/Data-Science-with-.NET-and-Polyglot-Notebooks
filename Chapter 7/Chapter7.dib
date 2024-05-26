@@ -1,0 +1,284 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"name":"csharp"}]}}
+
+#!markdown
+
+# Chapter 7
+
+#!csharp
+
+#r "nuget:Microsoft.Data.Analysis,0.21.1"
+
+using Microsoft.Data.Analysis;
+
+DataFrame df = DataFrame.LoadCsv("training.csv");
+df.Head(5)
+
+#!csharp
+
+df["HighestPay"].Info()
+
+#!csharp
+
+df = df.Filter(df["CurrentPay"].ElementwiseIsNotNull());
+df = df.Filter(df["HighestPay"].ElementwiseIsNotNull());
+
+DataFrame dfWithName = df.Clone();
+df.Columns.Remove("Name");
+
+df.Rows.Count()
+
+#!csharp
+
+#r "nuget:Microsoft.ML,3.0.1"
+#r "nuget:Microsoft.ML.AutoML,0.21.1"
+
+using Microsoft.ML;
+using Microsoft.ML.Data;
+using Microsoft.ML.AutoML;
+
+MLContext context = new();
+
+#!csharp
+
+RegressionExperimentSettings settings = new() {
+    MaxModels = 10,
+    OptimizingMetric = RegressionMetric.MeanAbsoluteError
+};
+settings
+
+#!csharp
+
+RegressionExperiment experiment = 
+    context.Auto().CreateRegressionExperiment(settings);
+
+string label = "CurrentPay";
+
+CrossValidationExperimentResult<RegressionMetrics> result = 
+    experiment.Execute(df, numberOfCVFolds: 3, labelColumnName: label);
+
+result
+
+#!csharp
+
+CrossValidationRunDetail<RegressionMetrics> best = result.BestRun;
+
+int index = 1;
+double totalMAE = 0;
+foreach (var result in best.Results) {
+    double mae = result.ValidationMetrics.MeanAbsoluteError;
+    Console.WriteLine($" Fold {index++} Mean Absolute Error: € {mae:N0}");
+    totalMAE += mae;
+}
+
+double averageMAE = totalMAE / best.Results.Count();
+Console.WriteLine($"Average Mean Absolute Error: € {averageMAE:N0}");
+
+#!csharp
+
+TrainResult<RegressionMetrics> bestFold = best.Results.OrderBy(f => f.ValidationMetrics.MeanAbsoluteError).First();
+bestFold
+
+#!csharp
+
+ITransformer model = bestFold.Model;
+model
+
+#!csharp
+
+RegressionMetrics metrics = bestFold.ValidationMetrics;
+metrics
+
+#!csharp
+
+Math.Sqrt(metrics.MeanSquaredError)
+
+#!csharp
+
+metrics.RootMeanSquaredError
+
+#!csharp
+
+metrics.MeanSquaredError.ToString("N0")
+
+#!csharp
+
+#r "nuget:MathNet.Numerics,5.0.0"
+
+using MathNet.Numerics.Statistics;
+
+SingleDataFrameColumn targetColumn = (SingleDataFrameColumn)df[label];
+
+double[] values = targetColumn.Where(v => v != null)
+                    .Select(v => (double)v)
+                    .OrderBy(v => v)
+                    .ToArray();
+
+DescriptiveStatistics stats = new(values);
+
+stats
+
+#!csharp
+
+stats.StandardDeviation / 1_000_000
+
+#!csharp
+
+public class Player {
+    public string Position {get; set;}
+    public string BirthCountry {get; set;}
+    public string SubPosition {get; set;}
+    public float Height {get; set;}
+    public float CurrentPay {get; set;}
+    public float HighestPay {get; set;}
+    public float BirthYear {get; set;}
+    public float Minutes {get; set;}
+    public float MinutesLastSeason {get; set;}
+    public float Games {get; set;}
+    public float GamesLastSeason {get; set;}
+    public float Goals {get; set;}
+    public float GoalsLastSeason {get; set;}
+    public float Assists {get; set;}
+    public float AssistsLastSeason {get; set;}
+    public float YellowCards {get; set;}
+    public float YellowLastSeason {get; set;}
+    public float RedCards {get; set;}
+    public float RedLastSeason {get; set;}
+    public float ShootoutGoals {get; set;}
+    public float ShootoutAppearances {get; set;}
+}
+
+#!csharp
+
+public class Prediction {
+    [ColumnName("Score")]
+    public float MarketValue {get; set;}
+}
+
+#!csharp
+
+PredictionEngine<Player, Prediction> engine = 
+    context.Model.CreatePredictionEngine<Player, Prediction>(model);
+
+#!csharp
+
+Player matt = new() {
+    Position = "Attack",
+    SubPosition = "Centre-Back",
+    Height = 168,
+    BirthYear = 1980,
+    Goals = 0,
+    Assists = 0,
+    YellowCards = 1,
+    RedCards = 0,
+    ShootoutGoals = 0,
+    ShootoutAppearances = 0,
+    Minutes = 2,
+    Games = 21
+};
+
+engine.Predict(matt)
+
+#!csharp
+
+float GetValueOrDefault(DataFrame df, DataFrameRow row, string columnName) {
+    if (!df.Columns.Any(c => c.Name == columnName)) {
+        throw new InvalidOperationException($"Column {columnName} not found");
+    }
+    object value = row[columnName];
+    return value == null ? 0 : (float)value;
+}
+
+#!csharp
+
+List<float> predictions = new();
+List<float> diff = new();
+List<float> percents = new();
+
+DataFrame dfSubset = dfWithName.Clone();
+
+foreach (var row in dfSubset.Rows)
+{
+    Player player = new() {
+        Position = row["Position"].ToString(),
+        SubPosition = row["SubPosition"].ToString(),
+        BirthCountry = row["BirthCountry"].ToString(),
+        Height = GetValueOrDefault(dfSubset, row, "Height"),
+        HighestPay = GetValueOrDefault(dfSubset, row, "HighestPay"),
+        BirthYear = (float)row["BirthYear"],
+        Minutes = (float)row["Minutes"],
+        MinutesLastSeason = GetValueOrDefault(dfSubset, row, "MinutesLastSeason"),
+        Goals = (float)row["Goals"],
+        GoalsLastSeason = GetValueOrDefault(dfSubset, row, "GoalsLastSeason"),
+        Assists = (float)row["Assists"],
+        AssistsLastSeason = GetValueOrDefault(dfSubset, row, "AssistsLastSeason"),
+        YellowCards = (float)row["YellowCards"],
+        YellowLastSeason = GetValueOrDefault(dfSubset, row, "YellowLastSeason"),
+        RedCards = (float)row["RedCards"],
+        RedLastSeason = GetValueOrDefault(dfSubset, row, "RedLastSeason"),
+        ShootoutGoals = (float)row["ShootoutGoals"],
+        ShootoutAppearances = (float)row["ShootoutAppearances"],
+        Games = (float)row["Games"],
+        GamesLastSeason = GetValueOrDefault(dfSubset, row, "GamesLastSeason")
+    };
+    
+    Prediction prediction = engine.Predict(player);
+
+    float currentPay = GetValueOrDefault(dfSubset, row, "CurrentPay");
+    float predicted = prediction.MarketValue;
+
+    float difference = predicted - currentPay;
+    float percent = (currentPay / predicted) * 100;
+
+    predictions.Add(predicted);
+    diff.Add(difference);
+    percents.Add(percent);
+}
+
+dfSubset.Columns.Add(new PrimitiveDataFrameColumn<float>("PredictedValue", predictions));
+dfSubset.Columns.Add(new PrimitiveDataFrameColumn<float>("PayDifference", diff));
+dfSubset.Columns.Add(new PrimitiveDataFrameColumn<float>("PercentOfProjectedPay", percents));
+
+#!csharp
+
+DataFrame dfAttackers = dfSubset.Filter(dfSubset["Position"].ElementwiseEquals("Attack"));
+dfAttackers.Head(5)
+
+#!csharp
+
+string[] columnsToKeep = new string[] { "Name", "Position", "SubPosition", "CurrentPay", "PredictedValue", "PercentOfProjectedPay", "Goals", "Assists", "Games", "Minutes", "GoalsLastSeason", "AssistsLastSeason", "BirthYear"};
+
+DataFrame dfNew = new DataFrame(columnsToKeep.Select(c => dfAttackers[c]));
+dfNew = dfNew.Filter(dfNew["CurrentPay"].ElementwiseGreaterThanOrEqual(75000));
+dfNew.OrderBy("PercentOfProjectedPay").Head(25)
+
+#!csharp
+
+dfNew.OrderByDescending("PercentOfProjectedPay").Head(10)
+
+#!csharp
+
+var transformed = model.Transform(df);
+transformed
+
+#!csharp
+
+var importance = context.Regression
+	.PermutationFeatureImportance(
+		model, 
+	    transformed, 
+	    labelColumnName: label,
+	    permutationCount: 3);
+
+importance
+
+#!csharp
+
+var orderedFeatures = importance.OrderByDescending(k => 
+    Math.Abs(k.Value.MeanAbsoluteError.Mean));
+
+foreach (var kvp in orderedFeatures.Take(10)) {
+    double avgImpact = kvp.Value.MeanAbsoluteError.Mean;
+    Console.WriteLine($"{kvp.Key} {avgImpact}");
+}

@@ -16,11 +16,6 @@ dfPlayers.Head(5)
 
 #!csharp
 
-dfPlayers = dfPlayers.Filter(dfPlayers["last_season"].ElementwiseEquals(2023));
-dfPlayers.Head(5)
-
-#!csharp
-
 DataFrame dfClubs = DataFrame.LoadCsv("../data/original/clubs.csv");
 
 dfClubs.Head(5)
@@ -171,32 +166,12 @@ dfPlayerShootouts.Head(5)
 
 #!csharp
 
-IEnumerable<int?> years = ((DateTimeDataFrameColumn)dfPlayerShootouts["date_of_birth"]).Select<DateTime?, int?>(d => d.HasValue ? d.Value.Year : null);
-dfPlayerShootouts["BirthYear"] = new Int32DataFrameColumn("BirthYear", years);
-
-#!csharp
-
 // Remove unnecessary columns
-string[] columnsToDrop = new string[] { "first_name", "last_name", "name", "last_season", "player_id", "index", "current_club_id", "player_code", "city_of_birth", "country_of_citizenship", "date_of_birth", "contract_expiration_date", "agent_name", "image_url", "url", "current_club_domestic_competition_id", "current_club_name", "foot", "ShootoutScoringPercent"};
+string[] columnsToDrop = new string[] { "first_name", "last_name", "name", "last_season", "player_id", "index", "current_club_id", "player_code", "city_of_birth", "country_of_citizenship", "date_of_birth", "contract_expiration_date", "agent_name", "image_url", "url", "current_club_domestic_competition_id", "current_club_name", "country_of_birth", "foot", "ShootoutScoringPercent"};
 foreach (string columnName in columnsToDrop) {
     dfPlayerShootouts.Columns.Remove(columnName);
 }
 
-dfPlayerShootouts.Head(5)
-
-#!csharp
-
-#r "nuget:Bogus"
-
-using Bogus;
-
-#!csharp
-
-Faker faker = new();
-
-List<string> names = dfPlayerShootouts.Rows.Select(_ => faker.Name.FullName(Bogus.DataSets.Name.Gender.Male)).ToList();
-
-dfPlayerShootouts.Columns.Add(new StringDataFrameColumn("Name", names));
 dfPlayerShootouts.Head(5)
 
 #!csharp
