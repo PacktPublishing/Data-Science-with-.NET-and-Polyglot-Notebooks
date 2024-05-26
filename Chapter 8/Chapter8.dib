@@ -61,7 +61,10 @@ foreach (var col in df.Columns)
 #!csharp
 
 SweepablePipeline pipeline = context.Auto()
-    .Featurizer(df, numericColumns: numericColumns.ToArray(), textColumns: textColumns.ToArray())
+    .Featurizer(df, 
+                numericColumns: numericColumns.ToArray(), 
+                textColumns: textColumns.ToArray(), 
+                excludeColumns: new string[] { label })
     .Append(context.Auto().Regression(labelColumnName: label));
 
 #!csharp
@@ -85,10 +88,28 @@ result.Metric
 
 #!csharp
 
-result.Model
+ITransformer model = result.Model;
+model
 
 #!csharp
 
-IDataView transformedTest = result.Model.Transform(split.TestSet);
+IDataView transformed = model.Transform(split.TestSet);
 
-context.Regression.Evaluate(transformedTest, labelColumnName: label)
+context.Regression.Evaluate(transformed, labelColumnName: label)
+
+#!csharp
+
+var importance = context.Regression
+	.PermutationFeatureImportance(
+		model, 
+	    transformed, 
+	    labelColumnName: label,
+	    permutationCount: 3);
+
+var orderedFeatures = importance.OrderByDescending(k => 
+    Math.Abs(k.Value.MeanAbsoluteError.Mean));
+
+foreach (var kvp in orderedFeatures.Take(10)) {
+    double avgImpact = kvp.Value.MeanAbsoluteError.Mean;
+    Console.WriteLine($"{kvp.Key} {avgImpact}");
+}
