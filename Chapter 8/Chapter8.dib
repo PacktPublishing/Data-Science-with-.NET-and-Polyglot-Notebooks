@@ -276,11 +276,8 @@ public class CustomTrialRunner : ITrialRunner {
 
         try
         {
-            // Get pipeline parameters
-            var parameter = settings.Parameter["_pipeline_"];
-
             // Use parameters to build pipeline
-            var pipeline = _pipeline.BuildFromOption(_context, parameter);
+            var pipeline = _pipeline.BuildFromOption(_context, settings.Parameter);
 
             // Train model
             var model = pipeline.Fit(_split.TrainSet);
@@ -300,8 +297,9 @@ public class CustomTrialRunner : ITrialRunner {
                 TrialSettings = settings
             });
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Console.WriteLine("Error: " + ex.Message);
             return await Task.FromResult(new TrialResult()
             {
                 Metric = double.MinValue,
@@ -314,6 +312,31 @@ public class CustomTrialRunner : ITrialRunner {
 
     public void Dispose() {
         
+    }
+}
+
+#!csharp
+
+public class CustomTuner : ITuner {
+    private readonly Random _rnd = new Random();
+
+    public CustomTuner(SearchSpace space) {
+        _searchSpace = space;
+    }
+
+    private readonly SearchSpace _searchSpace;
+
+    public Parameter Propose(TrialSettings settings) {
+        int d = _searchSpace.FeatureSpaceDim;
+        double[] featureVec = Enumerable.Repeat(0, d).Select(i => _rnd.NextDouble()).ToArray();
+
+        var parameter = _searchSpace.SampleFromFeatureSpace(featureVec);
+        settings.Parameter["_pipeline_"] = parameter;
+        
+        return parameter;
+    }
+
+    public void Update(TrialResult result) {
     }
 }
 
@@ -349,6 +372,7 @@ AutoMLExperiment experiment = context.Auto().CreateExperiment()
     .SetRegressionMetric(RegressionMetric.RSquared, labelColumn: label)
     .SetTrainingTimeInSeconds(10)
     .SetDataset(split)
+    .SetTuner<CustomTuner>(t => new CustomTuner(searchSpace))
     .SetTrialRunner(new CustomTrialRunner(context, pipeline, split, label));
 
 TrialResult result = await experiment.RunAsync();
