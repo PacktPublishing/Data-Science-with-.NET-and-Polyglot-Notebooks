@@ -1,0 +1,181 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"name":"csharp"}]}}
+
+#!markdown
+
+# Chapter 8
+
+#!csharp
+
+#r "nuget:Microsoft.ML,3.0.1"
+#r "nuget:Microsoft.ML.AutoML,0.21.1"
+#r "nuget:Microsoft.Data.Analysis,0.21.1"
+
+using Microsoft.Data.Analysis;
+using Microsoft.ML;
+using Microsoft.ML.Data;
+using Microsoft.ML.AutoML;
+using Microsoft.ML.AutoML.CodeGen;
+using Microsoft.ML.Trainers;
+using Microsoft.ML.Trainers.FastTree;
+using Microsoft.ML.SearchSpace;
+using Microsoft.ML.SearchSpace.Option;
+using Microsoft.ML.Runtime;
+
+MLContext context = new(seed: 123);
+
+#!markdown
+
+## Data Loading
+
+#!csharp
+
+DataFrame df = DataFrame.LoadCsv("training.csv");
+//df.Columns.Remove("SubPosition");
+df.Head(5)
+
+#!csharp
+
+DataOperationsCatalog.TrainTestData split = 
+    context.Data.TrainTestSplit(df, testFraction: 0.2, seed: 123);
+
+#!markdown
+
+## Regression
+
+#!csharp
+
+string label = "CurrentPay";
+
+#!csharp
+
+public class ColumnData {
+    public List<string> Text {get; set;} = new();
+    public List<string> Numeric {get; set;} = new();
+    public List<string> Categorical {get; set;} = new();
+    public List<string> Excluded {get; set;} = new();
+}
+
+#!csharp
+
+var columnInfo = new ColumnData();
+columnInfo.Excluded.Add(label);
+columnInfo.Excluded.Add("Name");
+
+foreach (var col in df.Columns)
+{
+    if (columnInfo.Excluded.Contains(col.Name))
+    {
+        continue;
+    }
+
+    if (col.GetType() == typeof(StringDataFrameColumn))
+    {
+        if (col.ValueCounts().Rows.Count < 15)
+        {
+            columnInfo.Categorical.Add(col.Name);
+        }
+        else
+        {
+            columnInfo.Text.Add(col.Name);
+        }
+    }
+    else if (col.GetType() == typeof(BooleanDataFrameColumn) || 
+             col.GetType() == typeof(PrimitiveDataFrameColumn<bool>))
+    {
+        columnInfo.Categorical.Add(col.Name);
+    }
+    else
+    {
+        columnInfo.Numeric.Add(col.Name);
+    }
+}
+columnInfo
+
+#!csharp
+
+SweepablePipeline basePipeline = context.Auto()
+    .Featurizer(df, 
+                numericColumns: columnInfo.Numeric.ToArray(), 
+                textColumns: columnInfo.Text.ToArray(),
+                catelogicalColumns: columnInfo.Categorical.ToArray(),
+                excludeColumns: columnInfo.Excluded.ToArray());
+
+#!csharp
+
+    SweepablePipeline pipeline = basePipeline.Append(
+      context.Auto().Regression(
+        labelColumnName: label, 
+        useFastTree: false, 
+        useFastForest: true, 
+        useLgbm: false, 
+        useLbfgsPoissonRegression: false,
+        useSdca: false)
+  );
+
+#!csharp
+
+SearchSpace<FastForestOption> searchSpace = new();
+searchSpace
+
+#!csharp
+
+searchSpace["NumberOfTrees"] = new UniformIntOption(1, 12, defaultValue: 4);
+searchSpace["NumberOfLeaves"] = new UniformIntOption(10, 100, defaultValue: 30);
+
+#!csharp
+
+SweepableEstimator estimator = context.Auto().CreateSweepableEstimator((context, options) => 
+    context.Regression.Trainers.FastForest(labelColumnName: label,
+    numberOfLeaves: options.NumberOfLeaves,
+    numberOfTrees: options.NumberOfTrees,
+    minimumExampleCountPerLeaf: 11), 
+searchSpace);
+
+SweepablePipeline pipeline = basePipeline.Append(estimator);
+
+#!csharp
+
+AutoMLExperiment experiment = context.Auto().CreateExperiment()
+    .SetPipeline(pipeline)
+    .SetDataset(split)
+    .SetRegressionMetric(RegressionMetric.MeanAbsoluteError, labelColumn: label)
+    .SetTrainingTimeInSeconds(120)
+    .SetEciCostFrugalTuner();
+
+TrialResult result = await experiment.RunAsync();
+
+ITransformer model = result.Model;
+IDataView transformed = model.Transform(split.TestSet);
+
+context.Regression.Evaluate(transformed, labelColumnName: label)
+
+#!fsharp
+
+#r "nuget:Microsoft.Data.Analysis,0.21.1"
+open Microsoft.Data.Analysis
+
+let dfPerf = DataFrame.LoadCsv("TunerPerf.csv")
+dfPerf
+
+#!fsharp
+
+#r "nuget:Plotly.NET,5.0.0"
+#r "nuget:Plotly.NET.Interactive,5.0.0"
+
+open Plotly.NET
+
+let buildLine (dbPerf:DataFrame, tuner:string) =
+    let dbTuner = dbPerf.Filter(dbPerf["Tuner"].ElementwiseEquals(tuner))
+    let times = dbTuner["Time"] |> Seq.cast<single>
+    let errors = dbTuner["MAE"] |> Seq.cast<single>
+    Chart.Line(x = times, y = errors, Name = tuner)
+
+[buildLine(dfPerf, "RandomSearchTuner"); buildLine(dfPerf, "GridSearchTuner"); buildLine(dfPerf, "SmacTuner"); buildLine(dfPerf, "CostFrugalTuner"); buildLine(dfPerf, "EciCostFrugalTuner")]
+    |> Chart.combine
+    |> Chart.withTitle("Tuner Performance")
+    |> Chart.withTemplate ChartTemplates.lightMirrored
+    |> Chart.withXAxisStyle("Training Time (seconds)")
+    |> Chart.withYAxisStyle("Mean Absolute Error (MAE) in millions", MinMax = (1., 2.5))
+    |> Chart.withSize(800, 600)

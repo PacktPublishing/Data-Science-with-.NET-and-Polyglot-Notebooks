@@ -6,24 +6,13 @@
 
 # Chapter 8
 
-#!markdown
-
-## Regression in a Pipeline
-
-#!csharp
-
-#r "nuget:Microsoft.Data.Analysis,0.21.1"
-
-using Microsoft.Data.Analysis;
-
-DataFrame df = DataFrame.LoadCsv("training.csv");
-df.Head(5)
-
 #!csharp
 
 #r "nuget:Microsoft.ML,3.0.1"
 #r "nuget:Microsoft.ML.AutoML,0.21.1"
+#r "nuget:Microsoft.Data.Analysis,0.21.1"
 
+using Microsoft.Data.Analysis;
 using Microsoft.ML;
 using Microsoft.ML.Data;
 using Microsoft.ML.AutoML;
@@ -33,16 +22,169 @@ using Microsoft.ML.Trainers.FastTree;
 using Microsoft.ML.SearchSpace;
 using Microsoft.ML.Runtime;
 
-MLContext context = new();
+MLContext context = new(seed: 123);
+
+#!markdown
+
+## Data Loading
+
+#!csharp
+
+DataFrame df = DataFrame.LoadCsv("training.csv");
+//df.Columns.Remove("SubPosition");
+df.Head(5)
 
 #!csharp
 
 DataOperationsCatalog.TrainTestData split = 
-    context.Data.TrainTestSplit(df, testFraction: 0.2);
+    context.Data.TrainTestSplit(df, testFraction: 0.2, seed: 123);
+
+#!markdown
+
+## Regression
 
 #!csharp
 
-public class ColumnTypes {
+string label = "CurrentPay";
+
+#!markdown
+
+### AutoML Experiment
+
+#!csharp
+
+context.Auto()
+       .CreateRegressionExperiment(maxExperimentTimeInSeconds: 10)
+       .Execute(split.TrainSet, split.TestSet, labelColumnName: label)
+
+#!mermaid
+
+flowchart LR
+    data[("Training 
+        Data")]
+    subgraph Pipeline
+        replace["Replace Missing 
+            Values"]
+        oneHot["One-Hot 
+            Encode"]
+        featurize["Featurize 
+            Text"]
+        concat["Concatenate 
+            Features"]
+        train["Fast Forest 
+            Regression"]
+    end
+    trained[/"Trained 
+        Model"/]
+    data --> replace --> oneHot --> featurize --> concat --> train --> trained
+
+#!markdown
+
+### Manual Regression
+
+#!csharp
+
+string[] numericColumns = df.Columns.OfType<SingleDataFrameColumn>()
+                                .Where(c => c.Name != label)
+                                .Select(col => col.Name)
+                                .ToArray();
+numericColumns
+
+#!csharp
+
+var pipeline = context.Transforms.Concatenate(outputColumnName: "Features", numericColumns)
+    .Append(context.Regression.Trainers.FastTree(
+        labelColumnName: label, 
+        numberOfLeaves: 20, 
+        numberOfTrees: 100, 
+        minimumExampleCountPerLeaf: 10, 
+        learningRate: 0.2));
+
+#!mermaid
+
+flowchart LR
+    data[("Training 
+        Data")]
+    subgraph Pipeline
+        concat["Concatenate 
+            Features"]
+        train["Fast Forest 
+            Regression"]
+    end
+    trained[/"Trained 
+        Model"/]
+    data --> concat --> train --> trained
+
+#!csharp
+
+ITransformer model = pipeline.Fit(split.TrainSet);
+model
+
+#!csharp
+
+IDataView transformed = model.Transform(split.TestSet);
+
+context.Regression.Evaluate(transformed, labelColumnName: label)
+
+#!csharp
+
+// We can manually get predictions
+model.Transform(split.TestSet).ToDataFrame()["Score"]
+
+#!markdown
+
+### Regression in an AutoML Pipeline
+
+#!csharp
+
+var pipeline = context.Auto().Featurizer(df, excludeColumns: [label, "Name"])
+    .Append(context.Auto().Regression(labelColumnName: label));
+
+#!csharp
+
+AutoMLExperiment experiment = context.Auto().CreateExperiment()
+    .SetPipeline(pipeline)
+    .SetDataset(split)
+    .SetRegressionMetric(RegressionMetric.MeanAbsoluteError, 
+                         labelColumn: label)
+    .SetTrainingTimeInSeconds(10);
+
+TrialResult result = await experiment.RunAsync();
+ITransformer model = result.Model;
+model
+
+#!csharp
+
+IDataView transformed = model.Transform(split.TestSet);
+
+context.Regression.Evaluate(transformed, labelColumnName: label)
+
+#!csharp
+
+/*
+var importance = context.Regression
+	.PermutationFeatureImportance(
+		model, 
+	    transformed, 
+	    labelColumnName: label,
+	    permutationCount: 1);
+
+var orderedFeatures = importance.OrderByDescending(k => 
+    Math.Abs(k.Value.RSquared.Mean));
+
+foreach (var kvp in orderedFeatures.Take(10)) {
+    double avgImpact = kvp.Value.RSquared.Mean;
+    Console.WriteLine($"{kvp.Key} {avgImpact}");
+}
+*/
+
+#!markdown
+
+### Regression with Featurization
+
+#!csharp
+
+public class ColumnData {
     public List<string> Text {get; set;} = new();
     public List<string> Numeric {get; set;} = new();
     public List<string> Categorical {get; set;} = new();
@@ -51,9 +193,7 @@ public class ColumnTypes {
 
 #!csharp
 
-string label = "CurrentPay";
-
-var columnInfo = new ColumnTypes();
+var columnInfo = new ColumnData();
 columnInfo.Excluded.Add(label);
 columnInfo.Excluded.Add("Name");
 
@@ -75,7 +215,8 @@ foreach (var col in df.Columns)
             columnInfo.Text.Add(col.Name);
         }
     }
-    else if (col.GetType() == typeof(BooleanDataFrameColumn))
+    else if (col.GetType() == typeof(BooleanDataFrameColumn) || 
+             col.GetType() == typeof(PrimitiveDataFrameColumn<bool>))
     {
         columnInfo.Categorical.Add(col.Name);
     }
@@ -84,79 +225,11 @@ foreach (var col in df.Columns)
         columnInfo.Numeric.Add(col.Name);
     }
 }
-
 columnInfo
 
 #!csharp
 
-SweepablePipeline pipeline = context.Auto()
-    .Featurizer(df, 
-                numericColumns: columnInfo.Numeric.ToArray(), 
-                textColumns: columnInfo.Text.ToArray(),
-                catelogicalColumns: columnInfo.Categorical.ToArray(),
-                excludeColumns: columnInfo.Excluded.ToArray())
-    .Append(context.Auto().Regression(labelColumnName: label));
-
-#!csharp
-
-AutoMLExperiment experiment = context.Auto().CreateExperiment()
-    .SetPipeline(pipeline)
-    .SetRegressionMetric(RegressionMetric.RSquared, labelColumn: label)
-    .SetTrainingTimeInSeconds(10)
-    .SetDataset(split);
-
-#!csharp
-
-TrialResult result = await experiment.RunAsync();
-
-#!markdown
-
-Note: trying to display the result errors due to the implementation of `TrialResult`
-
-#!csharp
-
-result.Metric
-
-#!csharp
-
-ITransformer model = result.Model;
-model
-
-#!csharp
-
-IDataView transformed = model.Transform(split.TestSet);
-
-context.Regression.Evaluate(transformed, labelColumnName: label)
-
-#!csharp
-
-public void PrintImportances(ITransformer model, IDataView transformed, string label, int permutations = 3, int features = 10)
-{
-	var importance = context.Regression
-		.PermutationFeatureImportance(
-			model, 
-			transformed, 
-			labelColumnName: label,
-			permutationCount: 3);
-
-	var orderedFeatures = importance.OrderByDescending(k => 
-		Math.Abs(k.Value.MeanAbsoluteError.Mean));
-
-	foreach (var kvp in orderedFeatures.Take(10)) {
-		double avgImpact = kvp.Value.MeanAbsoluteError.Mean;
-		Console.WriteLine($"{kvp.Key} {avgImpact}");
-	}
-}
-
-// PrintImportances(model, transformed, label);
-
-#!markdown
-
-## Additional Control
-
-#!csharp
-
-SweepablePipeline pipeline = context.Auto()
+SweepablePipeline basePipeline = context.Auto()
     .Featurizer(df, 
                 numericColumns: columnInfo.Numeric.ToArray(), 
                 textColumns: columnInfo.Text.ToArray(),
@@ -165,21 +238,108 @@ SweepablePipeline pipeline = context.Auto()
 
 #!csharp
 
-  pipeline = pipeline.Append(context.Auto().Regression(
-    labelColumnName: label, 
-    useFastTree: true, 
-    useFastForest: false, 
-    useLgbm: false, 
-    useLbfgsPoissonRegression: false,
-    useSdca: false));
+SweepablePipeline pipeline = basePipeline.Append(context.Auto().Regression(labelColumnName: label));
 
 #!csharp
 
 AutoMLExperiment experiment = context.Auto().CreateExperiment()
     .SetPipeline(pipeline)
+    .SetDataset(split)
     .SetRegressionMetric(RegressionMetric.RSquared, labelColumn: label)
     .SetTrainingTimeInSeconds(10)
-    .SetDataset(split);
+;
+
+#!csharp
+
+TrialResult result = await experiment.RunAsync();
+ITransformer model = result.Model;
+model
+
+#!csharp
+
+IDataView transformed = model.Transform(split.TestSet);
+
+context.Regression.Evaluate(transformed, labelColumnName: label)
+
+#!markdown
+
+### Eliminating Tree Algorithms
+
+#!csharp
+
+    SweepablePipeline pipeline = basePipeline.Append(
+      context.Auto().Regression(
+        labelColumnName: label, 
+        useFastTree: true, 
+        useFastForest: true, 
+        useLgbm: false, 
+        useLbfgsPoissonRegression: false,
+        useSdca: false)
+  );
+
+#!csharp
+
+AutoMLExperiment experiment = context.Auto().CreateExperiment()
+    .SetPipeline(pipeline)
+    .SetDataset(split)
+    .SetRegressionMetric(RegressionMetric.MeanAbsoluteError, labelColumn: label)
+    .SetTrainingTimeInSeconds(10);
+
+TrialResult result = await experiment.RunAsync();
+
+ITransformer model = result.Model;
+model
+
+#!csharp
+
+IDataView transformed = model.Transform(split.TestSet);
+
+context.Regression.Evaluate(transformed, labelColumnName: label)
+
+#!markdown
+
+### Scaling
+
+#!csharp
+
+InputOutputColumnPair[] scalableColumns = columnInfo.Numeric
+    .Select(col => new InputOutputColumnPair(col, col))
+    .ToArray();
+
+var normalizer = context.Transforms.NormalizeMinMax(scalableColumns);
+var pipeline = normalizer.Append(context.Auto()
+    .Featurizer(df, 
+                numericColumns: columnInfo.Numeric.ToArray(), 
+                textColumns: columnInfo.Text.ToArray(),
+                catelogicalColumns: columnInfo.Categorical.ToArray(),
+                excludeColumns: columnInfo.Excluded.ToArray()))
+                .Append(context.Auto().Regression(labelColumnName: label));
+
+#!csharp
+
+SweepablePipeline pipeline = basePipeline;
+pipeline = pipeline.Append(context.Transforms.NormalizeMinMax(inputColumnName: "Features", outputColumnName: "Features"));
+SweepablePipeline scaledPipeline = pipeline;
+
+#!csharp
+
+SweepablePipeline pipeline = scaledPipeline.Append(
+    context.Auto().Regression(
+    labelColumnName: label, 
+    useFastTree: false, 
+    useFastForest: false, 
+    useLgbm: false, 
+    useLbfgsPoissonRegression: true,
+    useSdca: false)
+);
+
+#!csharp
+
+AutoMLExperiment experiment = context.Auto().CreateExperiment()
+    .SetPipeline(pipeline)
+    .SetDataset(split)
+    .SetRegressionMetric(RegressionMetric.MeanAbsoluteError, labelColumn: label)
+    .SetTrainingTimeInSeconds(10);
 
 TrialResult result = await experiment.RunAsync();
 
@@ -194,224 +354,374 @@ context.Regression.Evaluate(transformed, labelColumnName: label)
 
 #!csharp
 
-// PrintImportances(model, transformed, label);
+SweepablePipeline pipeline = scaledPipeline.Append(context.Auto().Regression(labelColumnName: label));
+
+#!csharp
+
+AutoMLExperiment experiment = context.Auto().CreateExperiment()
+    .SetPipeline(scaledPipeline.Append(context.Auto().Regression(labelColumnName: label)))
+    .SetDataset(split)
+    .SetRegressionMetric(RegressionMetric.RSquared, labelColumn: label)
+    .SetTrainingTimeInSeconds(10);
+
+TrialResult result = await experiment.RunAsync();
+
+ITransformer model = result.Model;
+model
+
+#!csharp
+
+IDataView transformed = model.Transform(split.TestSet);
+
+context.Regression.Evaluate(transformed, labelColumnName: label)
 
 #!markdown
 
-## Even more control
+### Algorithm Selection
 
 #!csharp
 
-var searchSpace = new SearchSpace<FastForestOption>();
-searchSpace
-
-#!csharp
-
-// Create a sweepable pipeline using a FastForest regression model by calling context.Auto().CreateSweepableEstimator
-SweepableEstimator estimator = context.Auto().CreateSweepableEstimator((context, options) => 
-    context.Regression.Trainers.FastForest(labelColumnName: label, 
-                                           numberOfLeaves: options.NumberOfLeaves, 
-                                           numberOfTrees: options.NumberOfTrees), 
-searchSpace);
-
-#!csharp
-
-SweepablePipeline pipeline = context.Auto()
-    .Featurizer(df, 
-                numericColumns: columnInfo.Numeric.ToArray(), 
-                textColumns: columnInfo.Text.ToArray(),
-                catelogicalColumns: columnInfo.Categorical.ToArray(),
-                excludeColumns: columnInfo.Excluded.ToArray())
-    .Append(estimator);
+  SweepablePipeline pipeline = scaledPipeline.Append(
+    context.Auto().Regression(
+      labelColumnName: label, 
+      useFastTree: true, 
+      useFastForest: true, 
+      useLgbm: false, 
+      useLbfgsPoissonRegression: false,
+      useSdca: false)
+  );
 
 #!csharp
 
 AutoMLExperiment experiment = context.Auto().CreateExperiment()
     .SetPipeline(pipeline)
+    .SetDataset(split)
+    .SetRegressionMetric(RegressionMetric.RSquared, labelColumn: label)
+    .SetTrainingTimeInSeconds(2);
+
+TrialResult result = await experiment.RunAsync();
+
+ITransformer model = result.Model;
+model
+
+#!csharp
+
+IDataView transformed = model.Transform(split.TestSet);
+
+context.Regression.Evaluate(transformed, labelColumnName: label)
+
+#!csharp
+
+AutoMLExperiment experiment = context.Auto().CreateExperiment()
+    .SetPipeline(pipeline)
+    .SetDataset(split)
+    .SetRegressionMetric(RegressionMetric.RSquared, labelColumn: label)
+    .SetTrainingTimeInSeconds(5);
+
+TrialResult result = await experiment.RunAsync();
+
+ITransformer model = result.Model;
+model
+
+#!csharp
+
+IDataView transformed = model.Transform(split.TestSet);
+
+context.Regression.Evaluate(transformed, labelColumnName: label)
+
+#!csharp
+
+AutoMLExperiment experiment = context.Auto().CreateExperiment()
+    .SetPipeline(pipeline)
+    .SetDataset(split)
+    .SetRegressionMetric(RegressionMetric.RSquared, labelColumn: label)
+    .SetTrainingTimeInSeconds(10);
+
+TrialResult result = await experiment.RunAsync();
+
+ITransformer model = result.Model;
+model
+
+#!csharp
+
+IDataView transformed = model.Transform(split.TestSet);
+
+context.Regression.Evaluate(transformed, labelColumnName: label)
+
+#!csharp
+
+AutoMLExperiment experiment = context.Auto().CreateExperiment()
+    .SetPipeline(pipeline)
+    .SetDataset(split)
+    .SetRegressionMetric(RegressionMetric.RSquared, labelColumn: label)
+    .SetTrainingTimeInSeconds(30);
+
+TrialResult result = await experiment.RunAsync();
+
+ITransformer model = result.Model;
+model
+
+#!csharp
+
+IDataView transformed = model.Transform(split.TestSet);
+
+context.Regression.Evaluate(transformed, labelColumnName: label)
+
+#!csharp
+
+model.Transform(df.Sample(1)).GetColumn<float>("Score")
+
+#!markdown
+
+### Search Tuning
+
+#!csharp
+
+AutoMLExperiment experiment = context.Auto().CreateExperiment()
+    .SetPipeline(pipeline)
+    .SetDataset(split)
+    .SetRegressionMetric(RegressionMetric.MeanAbsoluteError, labelColumn: label)
+    .SetTrainingTimeInSeconds(10)
+    .SetGridSearchTuner(step: 2);
+
+TrialResult result = await experiment.RunAsync();
+
+ITransformer model = result.Model;
+IDataView transformed = model.Transform(split.TestSet);
+
+context.Regression.Evaluate(transformed, labelColumnName: label)
+
+#!fsharp
+
+#r "nuget:Microsoft.Data.Analysis,0.21.1"
+open Microsoft.Data.Analysis
+
+let dfPerf = DataFrame.LoadCsv("TunerPerf.csv")
+dfPerf
+
+#!fsharp
+
+#r "nuget:Plotly.NET,5.0.0"
+#r "nuget:Plotly.NET.Interactive,5.0.0"
+
+open Plotly.NET
+
+let buildLine (dbPerf:DataFrame, tuner:string) =
+    let dbTuner = dbPerf.Filter(dbPerf["Tuner"].ElementwiseEquals(tuner))
+    let times = dbTuner["training time"] |> Seq.cast<single>
+    let errors = dbTuner["MAE"] |> Seq.cast<single>
+    Chart.Line(x = times, y = errors, Name = tuner)
+
+[buildLine(dfPerf, "RandomSearchTuner"); buildLine(dfPerf, "GridSearchTuner"); buildLine(dfPerf, "SmacTuner"); buildLine(dfPerf, "CostFrugalTuner"); buildLine(dfPerf, "EciCostFrugalTuner")]
+    |> Chart.combine
+    |> Chart.withTitle("Tuner Performance")
+    |> Chart.withTemplate ChartTemplates.lightMirrored
+    |> Chart.withXAxisStyle("Training Time (seconds)")
+    |> Chart.withYAxisStyle("Mean Absolute Error (MAE)", MinMax = (0., 7.))
+    |> Chart.withSize(700, 500)
+
+#!csharp
+
+AutoMLExperiment experiment = context.Auto().CreateExperiment()
+    .SetPipeline(pipeline)
+    .SetDataset(split)
     .SetRegressionMetric(RegressionMetric.RSquared, labelColumn: label)
     .SetTrainingTimeInSeconds(25)
+    .SetEciCostFrugalTuner();
+
+TrialResult result = await experiment.RunAsync();
+
+ITransformer model = result.Model;
+IDataView transformed = model.Transform(split.TestSet);
+
+context.Regression.Evaluate(transformed, labelColumnName: label)
+
+#!csharp
+
+AutoMLExperiment experiment = context.Auto().CreateExperiment()
+    .SetPipeline(pipeline)
     .SetDataset(split)
-    // or .SetEciCostFrugalTuner();
-    // or .SetSmacTuner();
-    // or .SetRandomSearchTuner();
-    // or .SetCostFrugalTuner();
+    .SetRegressionMetric(RegressionMetric.RSquared, labelColumn: label)
+    .SetTrainingTimeInSeconds(25)
+    .SetRandomSearchTuner();
+
+TrialResult result = await experiment.RunAsync();
+
+ITransformer model = result.Model;
+IDataView transformed = model.Transform(split.TestSet);
+
+context.Regression.Evaluate(transformed, labelColumnName: label)
+
+#!csharp
+
+AutoMLExperiment experiment = context.Auto().CreateExperiment()
+    .SetPipeline(pipeline)
+    .SetDataset(split)
+    .SetRegressionMetric(RegressionMetric.RSquared, labelColumn: label)
+    .SetTrainingTimeInSeconds(25)
+    .SetCostFrugalTuner();
     // or .SetTuner<YourTuner>();
+
+TrialResult result = await experiment.RunAsync();
+
+ITransformer model = result.Model;
+IDataView transformed = model.Transform(split.TestSet);
+
+context.Regression.Evaluate(transformed, labelColumnName: label)
+
+#!csharp
+
+AutoMLExperiment experiment = context.Auto().CreateExperiment()
+    .SetPipeline(pipeline)
+    .SetDataset(split)
+    .SetRegressionMetric(RegressionMetric.RSquared, labelColumn: label)
+    .SetTrainingTimeInSeconds(25)
     .SetGridSearchTuner();
 
 TrialResult result = await experiment.RunAsync();
 
 ITransformer model = result.Model;
-model
-
-#!csharp
-
 IDataView transformed = model.Transform(split.TestSet);
 
 context.Regression.Evaluate(transformed, labelColumnName: label)
 
-#!markdown
-
-## I said MORE Control!
-
 #!csharp
 
-using System.Threading;
-
-public class CustomTrialRunner : ITrialRunner {
-
-    public CustomTrialRunner(MLContext context, SweepablePipeline pipeline, DataOperationsCatalog.TrainTestData split, string label) {
-        _pipeline = pipeline;
-        _context = context;
-        _split = split;
-        _label = label;
-    }
-
-    private readonly string _label;
-    private readonly MLContext _context;
-    private readonly SweepablePipeline _pipeline;
-    private readonly DataOperationsCatalog.TrainTestData _split;
-
-    public async Task<TrialResult> RunAsync(TrialSettings settings, CancellationToken token) {
-        Console.WriteLine($"Running trial " + settings.TrialId);
-
-        try
-        {
-            // Use parameters to build pipeline
-            var pipeline = _pipeline.BuildFromOption(_context, settings.Parameter);
-
-            // Train model
-            var model = pipeline.Fit(_split.TrainSet);
-
-            // Evaluate the model
-            var predictions = model.Transform(_split.TestSet);
-
-            // Get metrics
-            var evaluationMetrics = _context.Regression.Evaluate(predictions, labelColumnName: _label);
-
-            Console.WriteLine("Resulting metric: " + evaluationMetrics.RSquared);
-
-            return await Task.FromResult(new TrialResult()
-            {
-                Metric = evaluationMetrics.RSquared,
-                Model = model,
-                TrialSettings = settings
-            });
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("Error: " + ex.Message);
-            return await Task.FromResult(new TrialResult()
-            {
-                Metric = double.MinValue,
-                Model = null,
-                TrialSettings = settings,
-                DurationInMilliseconds = 0,
-            });
-        }
-    }
-
-    public void Dispose() {
-        
-    }
-}
-
-#!csharp
-
-public class CustomTuner : ITuner {
-    private readonly Random _rnd = new Random();
-
-    public CustomTuner(SearchSpace space) {
-        _searchSpace = space;
-    }
-
-    private readonly SearchSpace _searchSpace;
-
-    public Parameter Propose(TrialSettings settings) {
-        int d = _searchSpace.FeatureSpaceDim;
-        double[] featureVec = Enumerable.Repeat(0, d).Select(i => _rnd.NextDouble()).ToArray();
-
-        var parameter = _searchSpace.SampleFromFeatureSpace(featureVec);
-        settings.Parameter["_pipeline_"] = parameter;
-        
-        return parameter;
-    }
-
-    public void Update(TrialResult result) {
-    }
-}
-
-#!csharp
-
-var searchSpace = new SearchSpace<LgbmOption>();
+SearchSpace<FastForestOption> searchSpace = new();
 searchSpace
 
 #!csharp
 
-// Create a sweepable pipeline using a FastForest regression model by calling context.Auto().CreateSweepableEstimator
-SweepableEstimator estimator = context.Auto().CreateSweepableEstimator((context, options) => 
-    context.Regression.Trainers.LightGbm(labelColumnName: label, 
-                                         numberOfLeaves: options.NumberOfLeaves, 
-                                         minimumExampleCountPerLeaf: options.MinimumExampleCountPerLeaf,
-                                         learningRate: options.LearningRate), 
-searchSpace);
+searchSpace["NumberOfTrees"] = new UniformIntOption(1, 12, defaultValue: 4);
+searchSpace["NumberOfLeaves"] = new UniformIntOption(10, 100, defaultValue: 30);
 
 #!csharp
 
-SweepablePipeline pipeline = context.Auto()
-    .Featurizer(df, 
-                numericColumns: columnInfo.Numeric.ToArray(), 
-                textColumns: columnInfo.Text.ToArray(),
-                catelogicalColumns: columnInfo.Categorical.ToArray(),
-                excludeColumns: columnInfo.Excluded.ToArray())
-    .Append(estimator);
+SweepableEstimator estimator = context.Auto().CreateSweepableEstimator((context, options) => 
+    context.Regression.Trainers.FastForest(labelColumnName: label,
+    numberOfLeaves: options.NumberOfLeaves,
+    numberOfTrees: options.NumberOfTrees,
+    minimumExampleCountPerLeaf: 11), 
+searchSpace);
+
+SweepablePipeline pipeline = basePipeline.Append(estimator);
 
 #!csharp
 
 AutoMLExperiment experiment = context.Auto().CreateExperiment()
     .SetPipeline(pipeline)
-    .SetRegressionMetric(RegressionMetric.RSquared, labelColumn: label)
-    .SetTrainingTimeInSeconds(10)
     .SetDataset(split)
-    .SetTuner<CustomTuner>(t => new CustomTuner(searchSpace))
-    .SetTrialRunner(new CustomTrialRunner(context, pipeline, split, label));
+    .SetRegressionMetric(RegressionMetric.MeanAbsoluteError, labelColumn: label)
+    .SetTrainingTimeInSeconds(10)
+    .SetGridSearchTuner(step: 10);
 
 TrialResult result = await experiment.RunAsync();
 
 ITransformer model = result.Model;
-model
-
-#!csharp
-
 IDataView transformed = model.Transform(split.TestSet);
 
 context.Regression.Evaluate(transformed, labelColumnName: label)
 
 #!csharp
 
-//PrintImportances(model, transformed, label);
+AutoMLExperiment experiment = context.Auto().CreateExperiment()
+    .SetPipeline(pipeline)
+    .SetDataset(split)
+    .SetRegressionMetric(RegressionMetric.MeanAbsoluteError, labelColumn: label)
+    .SetTrainingTimeInSeconds(10);
+
+TrialResult result = await experiment.RunAsync();
+
+ITransformer model = result.Model;
+IDataView transformed = model.Transform(split.TestSet);
+
+context.Regression.Evaluate(transformed, labelColumnName: label)
+
+#!csharp
+
+model
 
 #!markdown
 
-## Let's do it manually!
+## Multi-Class Classification
+
+#!markdown
+
+### AutoML Multi-Class Classification
 
 #!csharp
 
-string[] allColumns = columnInfo.Numeric.ToArray();
-allColumns
+string label = "Position";
 
 #!csharp
 
-var pipeline = context.Transforms.Categorical.OneHotEncoding("Position")
+MulticlassExperimentSettings settings = new() {
+    OptimizingMetric = MulticlassClassificationMetric.LogLoss,
+    MaxExperimentTimeInSeconds = 10,
+};
+
+var experiment = context.Auto().CreateMulticlassClassificationExperiment(settings);
+
+var result = experiment.Execute(split.TrainSet, split.TestSet, labelColumnName: label);
+result
+
+#!markdown
+
+### Manual MultiClass Classification
+
+#!csharp
+
+var best = result.BestRun;
+best
+
+#!csharp
+
+best.ValidationMetrics.ConfusionMatrix.GetFormattedConfusionTable()
+
+#!csharp
+
+best.ValidationMetrics
+
+#!csharp
+
+best.Model
+
+#!csharp
+
+var pipeline = context.Transforms.Conversion.MapValueToKey(inputColumnName: label, outputColumnName: "Label")
     .Append(context.Transforms.Concatenate("Features", allColumns))
-    .Append(context.Regression.Trainers.FastTree(labelColumnName: label));
+    .Append(context.MulticlassClassification.Trainers.SdcaMaximumEntropy(labelColumnName: "Label", featureColumnName: "Features"))
+    .Append(context.Transforms.Conversion.MapKeyToValue("PredictedLabel"));
 
 #!csharp
 
-ITransformer model = pipeline.Fit(split.TrainSet);
+var model = pipeline.Fit(split.TrainSet);
 model
 
 #!csharp
 
 IDataView transformed = model.Transform(split.TestSet);
 
-context.Regression.Evaluate(transformed, labelColumnName: label)
+var metrics = context.MulticlassClassification.Evaluate(transformed);
+metrics.ConfusionMatrix.GetFormattedConfusionTable()
+
+#!csharp
+
+metrics
+
+#!markdown
+
+## Multiclass Stuff
+
+#!mermaid
+
+flowchart TD
+    node1{"> 5 Goals?"}
+    node2{"> 20 Games?"}
+    node3{"Position == 'Attack'?"}
+    node1 -- Yes --> node2
+    node1 -- No --> node3
+    node2 -- Yes --> leaf1["12 million euros"]
+    node2 -- No --> leaf2["8 million euros"]
+    node3 -- Yes --> leaf3["4 million euros"]
+    node3 -- No --> leaf4["2 million euros"]

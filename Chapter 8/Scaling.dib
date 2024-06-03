@@ -1,0 +1,166 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"name":"csharp"}]}}
+
+#!markdown
+
+# Chapter 8
+
+#!csharp
+
+#r "nuget:Microsoft.ML,3.0.1"
+#r "nuget:Microsoft.ML.AutoML,0.21.1"
+#r "nuget:Microsoft.Data.Analysis,0.21.1"
+
+using Microsoft.Data.Analysis;
+using Microsoft.ML;
+using Microsoft.ML.Data;
+using Microsoft.ML.AutoML;
+using Microsoft.ML.AutoML.CodeGen;
+using Microsoft.ML.Trainers;
+using Microsoft.ML.Trainers.FastTree;
+using Microsoft.ML.Transforms;
+using Microsoft.ML.SearchSpace;
+using Microsoft.ML.SearchSpace.Option;
+using Microsoft.ML.Runtime;
+
+MLContext context = new(seed: 123);
+
+#!markdown
+
+## Data Loading
+
+#!csharp
+
+DataFrame df = DataFrame.LoadCsv("training.csv");
+//df.Columns.Remove("SubPosition");
+df.Head(5)
+
+#!csharp
+
+DataOperationsCatalog.TrainTestData split = 
+    context.Data.TrainTestSplit(df, testFraction: 0.2, seed: 123);
+
+#!markdown
+
+## Regression
+
+#!csharp
+
+string label = "CurrentPay";
+
+#!csharp
+
+public class ColumnData {
+    public List<string> Text {get; set;} = new();
+    public List<string> Numeric {get; set;} = new();
+    public List<string> Categorical {get; set;} = new();
+    public List<string> Excluded {get; set;} = new();
+}
+
+#!csharp
+
+var columnInfo = new ColumnData();
+columnInfo.Excluded.Add(label);
+columnInfo.Excluded.Add("Name");
+
+foreach (var col in df.Columns)
+{
+    if (columnInfo.Excluded.Contains(col.Name))
+    {
+        continue;
+    }
+
+    if (col.GetType() == typeof(StringDataFrameColumn))
+    {
+        if (col.ValueCounts().Rows.Count < 15)
+        {
+            columnInfo.Categorical.Add(col.Name);
+        }
+        else
+        {
+            columnInfo.Text.Add(col.Name);
+        }
+    }
+    else if (col.GetType() == typeof(BooleanDataFrameColumn) || 
+             col.GetType() == typeof(PrimitiveDataFrameColumn<bool>))
+    {
+        columnInfo.Categorical.Add(col.Name);
+    }
+    else
+    {
+        columnInfo.Numeric.Add(col.Name);
+    }
+}
+columnInfo
+
+#!csharp
+
+SweepablePipeline basePipeline = context.Auto()
+    .Featurizer(df, 
+                numericColumns: columnInfo.Numeric.ToArray(), 
+                textColumns: columnInfo.Text.ToArray(),
+                catelogicalColumns: columnInfo.Categorical.ToArray(),
+                excludeColumns: columnInfo.Excluded.ToArray());
+
+#!csharp
+
+    SweepablePipeline pipeline = basePipeline.Append(
+      context.Auto().Regression(
+        labelColumnName: label, 
+        useFastTree: false, 
+        useFastForest: false, 
+        useLgbm: false, 
+        useLbfgsPoissonRegression: true,
+        useSdca: false)
+  );
+
+#!csharp
+
+AutoMLExperiment experiment = context.Auto().CreateExperiment()
+    .SetPipeline(pipeline)
+    .SetDataset(split)
+    .SetRegressionMetric(RegressionMetric.MeanAbsoluteError, labelColumn: label)
+    .SetTrainingTimeInSeconds(10);
+
+TrialResult result = await experiment.RunAsync();
+
+ITransformer model = result.Model;
+IDataView transformed = model.Transform(split.TestSet);
+
+context.Regression.Evaluate(transformed, labelColumnName: label)
+
+#!csharp
+
+df.Description()
+
+#!csharp
+
+InputOutputColumnPair[] columnPairs = 
+    columnInfo.Numeric.Select(c => new InputOutputColumnPair(c, c)).ToArray();
+
+#!csharp
+
+NormalizingEstimator scaler = context.Transforms.NormalizeMinMax(columnPairs);
+
+SweepablePipeline scaledPipeline = scaler.Append(pipeline);
+
+#!csharp
+
+AutoMLExperiment experiment = context.Auto().CreateExperiment()
+    .SetPipeline(scaledPipeline)
+    .SetDataset(split)
+    .SetRegressionMetric(RegressionMetric.MeanAbsoluteError, labelColumn: label)
+    .SetTrainingTimeInSeconds(10)
+    .SetEciCostFrugalTuner();
+
+TrialResult result = await experiment.RunAsync();
+
+ITransformer model = result.Model;
+IDataView transformed = model.Transform(split.TestSet);
+
+context.Regression.Evaluate(transformed, labelColumnName: label)
+
+#!csharp
+
+context.BinaryClassification.Trainers.

@@ -1,0 +1,16 @@
+Tuner,Time,MAE
+RandomSearchTuner,10,1.94
+RandomSearchTuner,30,1.88
+RandomSearchTuner,120,1.87
+GridSearchTuner,10,2.05
+GridSearchTuner,30,1.92
+GridSearchTuner,120,1.92
+SmacTuner,10,1.88
+SmacTuner,30,1.87
+SmacTuner,120,1.87
+CostFrugalTuner,10,1.75
+CostFrugalTuner,30,1.71
+CostFrugalTuner,120,1.70
+EciCostFrugalTuner,10,2.27
+EciCostFrugalTuner,30,2.16
+EciCostFrugalTuner,120,1.64
