@@ -144,11 +144,11 @@ let redCards = df["red_cards"] |> Seq.cast<single>
 
 #!fsharp
 
-#r "nuget:Plotly.NET,4.2.0"
+#r "nuget:Plotly.NET,5.0.0"
 
 #!fsharp
 
-#r "nuget: Plotly.NET.Interactive,4.2.1"
+#r "nuget: Plotly.NET.Interactive,5.0.0"
 
 #!fsharp
 
