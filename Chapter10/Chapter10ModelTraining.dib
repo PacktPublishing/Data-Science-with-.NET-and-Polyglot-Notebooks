@@ -38,7 +38,7 @@ var split = context.Data.TrainTestSplit(df, testFraction: 0.2, seed: 42);
 #!csharp
 
 MulticlassExperimentSettings settings = new() {
-    MaxExperimentTimeInSeconds = 10,
+    MaxModels = 10,
     OptimizingMetric = MulticlassClassificationMetric.MacroAccuracy
 };
 
@@ -47,8 +47,7 @@ MulticlassClassificationExperiment experiment = context.Auto().CreateMulticlassC
 var result = experiment.Execute(split.TrainSet, split.TestSet);
 var model = result.BestRun.Model;
 
-model.Display();
-
+result.BestRun.ValidationMetrics.Display();
 result.BestRun.ValidationMetrics.ConfusionMatrix.GetFormattedConfusionTable()
 
 #!csharp
@@ -57,6 +56,8 @@ public class PredictionRequest
 {
     public float OurPosition { get; set; }
     public float OpponentPosition { get; set; }
+    public float OurGoalsLast3Games {get; set;}
+    public float OpponentGoalsLast3Games {get; set;}
     public bool IsHome { get; set; }
     public string Label {get; set;}
 }
@@ -76,6 +77,8 @@ var engine = context.Model.CreatePredictionEngine<PredictionRequest, PredictionR
 engine.Predict(new PredictionRequest() {
     OurPosition = 1,
     OpponentPosition = 3,
+    OurGoalsLast3Games = 4,
+    OpponentGoalsLast3Games = 2,
     IsHome = true,
 })
 

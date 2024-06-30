@@ -1,4 +1,4 @@
-own_position,opponent_position,is_home,result,goals_last_3_game,opponent_goals_last_3_game
+OurPosition,OpponentPosition,IsHome,Label,OurGoalsLast3Games,OpponentGoalsLast3Games
 1.0,15.0,True,Win,7,3
 18.0,11.0,True,Loss,0,8
 13.0,3.0,True,Win,5,0
