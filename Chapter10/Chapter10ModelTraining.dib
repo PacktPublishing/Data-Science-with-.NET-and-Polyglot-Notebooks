@@ -1,0 +1,84 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"name":"csharp"}]}}
+
+#!markdown
+
+## Chapter 10
+
+This notebook contains details of training the multi-class classification model used in this chapter
+
+#!csharp
+
+#r "nuget:Microsoft.ML,3.0.1"
+#r "nuget:Microsoft.ML.AutoML,0.21.1"
+#r "nuget:Microsoft.Data.Analysis,0.21.1"
+
+using Microsoft.Data.Analysis;
+using Microsoft.ML;
+using Microsoft.ML.Data;
+using Microsoft.ML.AutoML;
+using Microsoft.ML.AutoML.CodeGen;
+using Microsoft.ML.Trainers;
+using Microsoft.ML.Trainers.FastTree;
+using Microsoft.ML.SearchSpace;
+using Microsoft.ML.Runtime;
+
+#!csharp
+
+DataFrame df = DataFrame.LoadCsv("../data/winloss.csv");
+df.Sample(5)
+
+#!csharp
+
+MLContext context = new(seed: 123);
+
+var split = context.Data.TrainTestSplit(df, testFraction: 0.2, seed: 42);
+
+#!csharp
+
+MulticlassExperimentSettings settings = new() {
+    MaxExperimentTimeInSeconds = 10,
+    OptimizingMetric = MulticlassClassificationMetric.MacroAccuracy
+};
+
+MulticlassClassificationExperiment experiment = context.Auto().CreateMulticlassClassificationExperiment(settings);
+
+var result = experiment.Execute(split.TrainSet, split.TestSet);
+var model = result.BestRun.Model;
+
+model.Display();
+
+result.BestRun.ValidationMetrics.ConfusionMatrix.GetFormattedConfusionTable()
+
+#!csharp
+
+public class PredictionRequest
+{
+    public float OurPosition { get; set; }
+    public float OpponentPosition { get; set; }
+    public bool IsHome { get; set; }
+    public string Label {get; set;}
+}
+
+#!csharp
+
+public class PredictionResult 
+{
+    public string PredictedLabel {get; set;}
+    public float[] Score {get; set;}
+}
+
+#!csharp
+
+var engine = context.Model.CreatePredictionEngine<PredictionRequest, PredictionResult>(model);
+
+engine.Predict(new PredictionRequest() {
+    OurPosition = 1,
+    OpponentPosition = 3,
+    IsHome = true,
+})
+
+#!csharp
+
+context.Model.Save(model, split.TrainSet.Schema, "WinLossPredictorApi/WinLossPredictor.zip")

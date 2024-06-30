@@ -1,0 +1,30 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.002.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Chapter10", "Chapter10", "{1FEC3F8C-9479-438D-A9EE-43992B85ECF3}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WinLossPredictorApi", "Chapter10\WinLossPredictorApi\WinLossPredictorApi.csproj", "{80DEC0A3-9C8A-4E4E-9AA3-9AB0FFFAB0B7}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{80DEC0A3-9C8A-4E4E-9AA3-9AB0FFFAB0B7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{80DEC0A3-9C8A-4E4E-9AA3-9AB0FFFAB0B7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{80DEC0A3-9C8A-4E4E-9AA3-9AB0FFFAB0B7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{80DEC0A3-9C8A-4E4E-9AA3-9AB0FFFAB0B7}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{80DEC0A3-9C8A-4E4E-9AA3-9AB0FFFAB0B7} = {1FEC3F8C-9479-438D-A9EE-43992B85ECF3}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {16BBC3C8-9E83-424C-ABE2-B8A0965F5F6E}
+	EndGlobalSection
+EndGlobal
