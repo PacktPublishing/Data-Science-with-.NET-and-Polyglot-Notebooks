@@ -1,0 +1,179 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"languageName":"text","name":"chat"},{"aliases":[],"name":"csharp"}]}}
+
+#!markdown
+
+# Generative AI
+
+#!csharp
+
+#r "nuget:Azure.AI.OpenAI,2.0.0-beta.2"
+
+using Azure;
+using Azure.AI.OpenAI;
+using Azure.AI.OpenAI.Chat;
+
+#!markdown
+
+## Connecting to Azure OpenAI Service
+
+#!csharp
+
+#!set --name url --value @input:"Enter your endpoint"
+Uri endpoint = new Uri(url);
+endpoint
+
+#!csharp
+
+using Microsoft.DotNet.Interactive;
+
+PasswordString key = await Kernel.GetPasswordAsync("Enter your key");
+
+#!csharp
+
+AzureKeyCredential creds = new(key.GetClearTextPassword());
+AzureOpenAIClient azureClient = new(endpoint, creds);
+
+#!markdown
+
+## Chatting
+
+#!csharp
+
+using OpenAI.Chat;
+
+string chatModelName = "gpt-4o-deployment";
+ChatClient chatClient = azureClient.GetChatClient(chatModelName);
+
+#!csharp
+
+using System.ClientModel;
+
+string systemPrompt = """
+You are a football (soccer) coach bot. Provide brief strategic assistance to players for football-related questions.
+""";
+
+string userPrompt = """
+The opponents have one high-skilled attacker who is causing us trouble. What should we do?
+""";
+
+ClientResult<ChatCompletion> result = chatClient.CompleteChat([
+    new SystemChatMessage(systemPrompt),
+    new UserChatMessage(userPrompt)
+]);
+result.Value
+
+#!csharp
+
+foreach (var message in result.Value.Content.Where(m => m.Kind == ChatMessageContentPartKind.Text)) {
+    Console.WriteLine(message.Text);
+}
+
+#!markdown
+
+## Prompt Engineering
+
+#!csharp
+
+string systemPrompt2 = """
+You are an AI football (soccer) assistant with a cheerful and positive demeanor. Provide 1-2 sentence answers to strategic situations in a way that would be suitable to deliver to football players during a live match.
+""";
+
+ClientResult<ChatCompletion> result = chatClient.CompleteChat([
+    new SystemChatMessage(systemPrompt2),
+    new UserChatMessage(userPrompt)
+]);
+
+foreach (var message in result.Value.Content) {
+    Console.WriteLine(message.Text);
+}
+
+#!csharp
+
+string ex1User = """
+We can't break out of our defensive end! What should we do?
+""";
+string ex1Assistant = """
+Stay calm and keep possession. Slow down the pace, spread out, and look for opportunities to pass. You don't have to force the ball forward.
+""";
+
+ClientResult<ChatCompletion> result = chatClient.CompleteChat([
+    new SystemChatMessage(systemPrompt2),
+    new UserChatMessage(ex1User),
+    new SystemChatMessage(ex1Assistant),
+    new UserChatMessage(userPrompt)
+]);
+
+foreach (var message in result.Value.Content) {
+    Console.WriteLine(message.Text);
+}
+
+#!markdown
+
+## Text Embeddings
+
+#!csharp
+
+using OpenAI.Embeddings;
+
+string embedDeployment = "text-embedding-ada-002";
+EmbeddingClient embedClient = azureClient.GetEmbeddingClient(embedDeployment);
+
+#!csharp
+
+string sentence = "Our goalkeeper is out of position!";
+ClientResult<Embedding> response1 = embedClient.GenerateEmbedding(sentence);
+Embedding embedding1 = response1.Value;
+Console.WriteLine(embedding1.Vector.Length + " dimensions");
+embedding1
+
+#!csharp
+
+#r "nuget:System.Numerics.Tensors"
+using System.Numerics.Tensors;
+
+#!csharp
+
+string sentence2 = "Shoot the ball while the keeper is out of place!";
+Embedding embedding2 = embedClient.GenerateEmbedding(sentence2).Value;
+
+TensorPrimitives.CosineSimilarity(embedding1.Vector.Span, embedding2.Vector.Span)
+
+#!csharp
+
+string sentence3 = "I enjoy learning about artificial intelligence.";
+Embedding embedding3 = embedClient.GenerateEmbedding(sentence3).Value;
+
+TensorPrimitives.CosineSimilarity(embedding1.Vector.Span, embedding3.Vector.Span)
+
+#!markdown
+
+## Image Generation
+
+#!csharp
+
+using OpenAI.Images;
+
+string imageDeployment = "dall-e";
+ImageClient imageClient = azureClient.GetImageClient(imageDeployment);
+
+#!csharp
+
+string imgPrompt = """
+A picture of a nerdy bald male author with glasses executing a bicycle kick in a football match.
+""";
+ClientResult<GeneratedImage> imgResult = imageClient.GenerateImage(imgPrompt);
+imgResult.Value
+
+#!csharp
+
+using Microsoft.DotNet.Interactive.Formatting;
+
+// Set up a .NET Interactive formatter for OpenAI.Images.GeneratedImage to render the image as HTML
+Formatter.Register<GeneratedImage>((image, writer) =>
+{
+    writer.Write($"<img src=\"{image.ImageUri}\" >");
+    writer.Write($"<p>{image.RevisedPrompt}</p>");
+}, "text/html");
+imgResult.Value

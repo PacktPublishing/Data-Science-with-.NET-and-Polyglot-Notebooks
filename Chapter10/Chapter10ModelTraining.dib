@@ -18,11 +18,8 @@ using Microsoft.Data.Analysis;
 using Microsoft.ML;
 using Microsoft.ML.Data;
 using Microsoft.ML.AutoML;
-using Microsoft.ML.AutoML.CodeGen;
 using Microsoft.ML.Trainers;
 using Microsoft.ML.Trainers.FastTree;
-using Microsoft.ML.SearchSpace;
-using Microsoft.ML.Runtime;
 
 #!csharp
 
@@ -32,23 +29,30 @@ df.Sample(5)
 #!csharp
 
 MLContext context = new(seed: 123);
-
-var split = context.Data.TrainTestSplit(df, testFraction: 0.2, seed: 42);
+var split = context.Data.TrainTestSplit(data: df, testFraction: 0.2, seed: 42);
 
 #!csharp
 
 MulticlassExperimentSettings settings = new() {
-    MaxModels = 10,
+    MaxExperimentTimeInSeconds = 10,
     OptimizingMetric = MulticlassClassificationMetric.MacroAccuracy
 };
 
-MulticlassClassificationExperiment experiment = context.Auto().CreateMulticlassClassificationExperiment(settings);
+MulticlassClassificationExperiment exp = 
+    context.Auto().CreateMulticlassClassificationExperiment(settings);
 
-var result = experiment.Execute(split.TrainSet, split.TestSet);
-var model = result.BestRun.Model;
+#!csharp
 
-result.BestRun.ValidationMetrics.Display();
-result.BestRun.ValidationMetrics.ConfusionMatrix.GetFormattedConfusionTable()
+ExperimentResult<MulticlassClassificationMetrics> result = 
+    exp.Execute(split.TrainSet, split.TestSet);
+ITransformer model = result.BestRun.Model;
+model
+
+#!csharp
+
+MulticlassClassificationMetrics metrics = result.BestRun.ValidationMetrics;
+metrics.Display();
+metrics.ConfusionMatrix.GetFormattedConfusionTable()
 
 #!csharp
 
@@ -84,4 +88,29 @@ engine.Predict(new PredictionRequest() {
 
 #!csharp
 
-context.Model.Save(model, split.TrainSet.Schema, "WinLossPredictorApi/WinLossPredictor.zip")
+context.Model.Save(model: model, 
+    inputSchema: split.TrainSet.Schema, 
+    filePath: "WinLossPredictorApi/WinLossPredictor.zip");
+
+#!csharp
+
+string modelPath = "WinLossPredictorApi/WinLossPredictor.zip";
+ITransformer loadedModel = context.Model.Load(modelPath, out _);
+
+#!csharp
+
+#r "nuget:Microsoft.ML.OnnxConverter,0.21.1"
+using System.IO;
+
+using (FileStream stream = File.Create("./WinLossPredictor.onnx")) {
+    context.Model.ConvertToOnnx(model, df, stream);
+}
+
+#!csharp
+
+#r "nuget:Microsoft.ML.OnnxTransformer,3.0.1"
+#r "nuget:Microsoft.ML.OnnxRuntime,1.18.1"
+
+using Microsoft.ML.Transforms.Onnx;
+
+OnnxScoringEstimator estimator = context.Transforms.ApplyOnnxModel("WinLossPredictor.onnx");
