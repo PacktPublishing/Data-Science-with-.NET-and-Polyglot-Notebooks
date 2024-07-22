@@ -13,10 +13,10 @@ using Microsoft.DotNet.Interactive;
 string chatModelName = "gpt-4o-deployment";
 
 string url = 
-    await Microsoft.DotNet.Interactive.Kernel.GetInputAsync("Enter your Azure OpenAI Endpoint");
+    await Kernel.GetInputAsync("Enter your Azure OpenAI Endpoint");
 
 PasswordString key = 
-    await Microsoft.DotNet.Interactive.Kernel.GetPasswordAsync("Enter your Azure OpenAI key");
+    await Kernel.GetPasswordAsync("Enter your Azure OpenAI key");
 
 #!csharp
 
@@ -24,32 +24,33 @@ PasswordString key =
 
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
+using Kernel = Microsoft.SemanticKernel.Kernel;
 
 #!csharp
 
-var builder = Microsoft.SemanticKernel.Kernel.CreateBuilder();
+IKernelBuilder builder = Kernel.CreateBuilder();
 
 builder.AddAzureOpenAIChatCompletion(
     deploymentName: chatModelName,
     endpoint: url,
     apiKey: key.GetClearTextPassword());
 
-var kernel = builder.Build();
+Kernel kernel = builder.Build();
 
 #!csharp
+
+string coachPrompt = @"{{$input}}
+
+Respond to the user as if you are a professional European football coach giving players advice during a match. Focus on brief tidbits of football wisdom.";
 
 OpenAIPromptExecutionSettings settings = new() { 
     MaxTokens = 100,
 };
-settings
 
-#!csharp
-
-var coachPrompt = @"{{$input}}
-
-Respond to the user as if you are a professional European football coach giving players advice during a match. Focus on brief tidbits of football wisdom.";
-
-var coach = kernel.CreateFunctionFromPrompt(coachPrompt, executionSettings: settings);
+KernelFunction coach = kernel.CreateFunctionFromPrompt(coachPrompt, 
+    executionSettings: settings, 
+    functionName: "CoachPersonality", 
+    description: "A personality prompt for giving advice to players in a football match");
 
 #!csharp
 
@@ -61,27 +62,16 @@ Console.WriteLine(await kernel.InvokeAsync(coach, data))
 
 #!csharp
 
-var butlerPrompt = @"{{$input}}
+string butlerPrompt = @"{{$input}}
 
 You are the butler to a crime-fighting vigilante. Keep your responses professional, but wry. Be helpful, encouraging, and encourage caution.";
 
-var butler = kernel.CreateFunctionFromPrompt(butlerPrompt, executionSettings: settings);
-
-#!csharp
-
-KernelArguments data = new() { 
-    ["input"] = "What is the time?" 
-};
+KernelFunction butler = kernel.CreateFunctionFromPrompt(butlerPrompt, 
+    executionSettings: settings,
+    functionName: "ButlerPersonality",
+    description: "A personality prompt for a butler to a crime-fighting vigilante");
 
 Console.WriteLine(await kernel.InvokeAsync(butler, data))
-
-#!csharp
-
-var timeFunc = kernel.CreateFunctionFromMethod(() => DateTime.Now.ToShortTimeString(), 
-        "GetCurrentTime", 
-        "Retrieves the current time in the local time zone.");
-
-await kernel.InvokeAsync(timeFunc)
 
 #!markdown
 
@@ -99,7 +89,7 @@ using Microsoft.SemanticKernel.Memory;
 
 string embedDeployment = "text-embedding-ada-002";
 
-var memoryBuilder = new MemoryBuilder();
+MemoryBuilder memoryBuilder = new();
 memoryBuilder.WithAzureOpenAITextEmbeddingGeneration(
         embedDeployment,
         url, 
@@ -108,22 +98,96 @@ memoryBuilder.WithAzureOpenAITextEmbeddingGeneration(
 
 memoryBuilder.WithMemoryStore(new VolatileMemoryStore());
 
-var memory = memoryBuilder.Build();
+#!csharp
+
+#pragma warning disable SKEXP0001
+ISemanticTextMemory memory = memoryBuilder.Build();
 
 string collection = "FootballFacts";
+string[] facts = new[] {
+        "Our next opponent is the Purple Cobras",
+        "Our team is the Silver Robots.",
+        "The author of this book would make a terrible footballer.",
+        "Our home pitch is at Packt Stadium",
+        $"Today is {DateTime.Now.ToShortDateString()}"        
+};
 
-await memory.SaveInformationAsync(collection, id: "Fact1", text: "The Purple Cobras are undefeated for the past 15 years.");
-await memory.SaveInformationAsync(collection, id: "Fact2", text: "Our next opponent is the Purple Cobras");
-await memory.SaveInformationAsync(collection, id: "Fact3", text: "Our team is the Silver Robots.");
-await memory.SaveInformationAsync(collection, id: "Fact4", text: "The author of this book would make a terrible footballer.");
-await memory.SaveInformationAsync(collection, id: "Fact5", text: "Our home pitch is at Packt Stadium");
-await memory.SaveInformationAsync(collection, id: "Fact6", text: "Today is October 31st, 2024");
+for (int i = 0; i < facts.Length; i++)
+{
+    await memory.SaveInformationAsync(collection, id: $"Fact{i}", text: facts[i]);
+}
 
 #!csharp
 
-await foreach (var result in memory.SearchAsync(collection, "Tell me about our team", limit: 3)) {
-    result.Display();
+#pragma warning disable SKEXP0001
+string query = "Tell me about our team";
+IAsyncEnumerable<MemoryQueryResult> results = 
+    memory.SearchAsync(collection, query, limit: 3);
+await foreach (var result in results) {
+    double relevance = result.Relevance;
+    string text = result.Metadata.Text;
+    string id = result.Metadata.Id;
+    Console.WriteLine($"{id}: {text} ({relevance:P1})");
 }
+
+#!markdown
+
+## Defining Complex Functions
+
+#!csharp
+
+KernelFunction timeFunc = kernel.CreateFunctionFromMethod(
+        () => DateTime.Now.ToShortTimeString(), 
+        "GetCurrentTime", 
+        "Retrieves the current time in the local time zone.");
+
+await kernel.InvokeAsync(timeFunc)
+
+#!csharp
+
+Dictionary<string, string> teamRecords = new() {
+    { "Purple Cobras", "5 wins, 0 losses, 0 ties" },
+    { "Orange Donkeys", "0 wins, 4 losses, 1 tie" },
+    { "Silver Robots", "2 wins, 2 losses, 1 tie" },
+    { "Maroon Baboons", "1 win, 2 losses, 2 ties" },
+};
+teamRecords
+
+#!csharp
+
+KernelFunction teamInfoFunc = 
+    kernel.CreateFunctionFromMethod((string teamName) => {
+        if (teamRecords.ContainsKey(teamName)) {
+            return teamRecords[teamName];
+        } else {
+            return "There is no information on that team.";
+        }
+    }, 
+    "GetTeamInsights", 
+    "Retrieves insights about a specific team");
+
+KernelArguments args = new KernelArguments { 
+    ["teamName"] = "Silver Robots" 
+};
+await kernel.InvokeAsync(teamInfoFunc, args)
+
+#!csharp
+
+KernelFunction searchFunc = 
+    kernel.CreateFunctionFromMethod(async (string query) => {
+        var results = memory.SearchAsync(collection, query, limit: 1);
+        await foreach (var result in results) {
+            return result.Metadata.Text;
+        }
+        return "No information found.";
+    }, 
+    "SearchMemory", 
+    "Searches the memory for information");
+
+KernelArguments args = new KernelArguments { 
+    ["query"] = "How good of a footballer would the author be?" 
+};
+await kernel.InvokeAsync(searchFunc, args)
 
 #!markdown
 
@@ -131,52 +195,10 @@ await foreach (var result in memory.SearchAsync(collection, "Tell me about our t
 
 #!csharp
 
-var timeFunc = kernel.CreateFunctionFromMethod(() => DateTime.Now.ToShortTimeString(), 
-        "GetCurrentTime", 
-        "Retrieves the current time in the local time zone.");
-
-#!csharp
-
-var teamInfoFunc = kernel.CreateFunctionFromMethod((string teamName) => {
-            Dictionary<string, string> teamRecords = new() {
-                { "Purple Cobras", "5 wins, 0 losses, 0 ties" },
-                { "Orange Donkeys", "0 wins, 4 losses, 1 tie" },
-                { "Silver Robots", "2 wins, 2 losses, 1 tie" },
-                { "Maroon Baboons", "1 win, 2 losses, 2 ties" },
-            };
-
-            if (teamRecords.ContainsKey(teamName)) {
-                return teamRecords[teamName];
-            } else {
-                return "There is no information on that team.";
-            }
-        }, 
-        "GetTeamInsights", 
-        "Retrieves insights about a specific team");
-
-#!csharp
-
-var memorySearchFunc = kernel.CreateFunctionFromMethod(async (string query) => {
-            await foreach (var result in memory.SearchAsync(collection, "Tell me about our team", limit: 1)) {
-                return result.Metadata.Text;
-            }
-            return "No information found.";
-        }, 
-        "SearchMemory", 
-        "Searches the memory for information");
-
-#!csharp
-
-KernelPlugin plugin = kernel.ImportPluginFromFunctions("FootballPlugin",
-[
-    timeFunc,
-    teamInfoFunc,
-    memorySearchFunc
-]);
-
-#!csharp
-
-await kernel.InvokePromptAsync("Are the orange donkeys any good?", new KernelArguments(settings))
+KernelPlugin plugin = 
+    kernel.ImportPluginFromFunctions("FootballPlugin",
+        "A collection of functions related to football",
+        functions: [ coach, timeFunc, teamInfoFunc, searchFunc ]);
 
 #!csharp
 
@@ -189,11 +211,16 @@ settings
 
 #!csharp
 
-await kernel.InvokePromptAsync("Are the orange donkeys any good?", new KernelArguments(settings))
+var result = await kernel.InvokePromptAsync("Are the orange donkeys any good?", new KernelArguments(settings));
+Console.WriteLine(result);
+result
 
 #!csharp
 
-await kernel.InvokePromptAsync("Coach, what time is it? Who are we playing anyways? Are they good?", new KernelArguments(settings))
+FunctionResult result = await kernel.InvokePromptAsync(
+  "Coach, what time is it? Who are we playing anyways? Are they good?", 
+  new KernelArguments(settings));
+result
 
 #!markdown
 
@@ -204,7 +231,6 @@ await kernel.InvokePromptAsync("Coach, what time is it? Who are we playing anywa
 #r "nuget:Microsoft.SemanticKernel.Planners.OpenAI,1.16.0-preview"
 
 using Microsoft.SemanticKernel.Planning;
-
 
 #pragma warning disable SKEXP0060
 
