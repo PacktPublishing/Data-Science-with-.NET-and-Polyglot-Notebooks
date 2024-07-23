@@ -1,0 +1,42 @@
+{
+  "folders": [
+    {
+      "path": "..",
+      "name": "(root)"
+    },
+    {
+      "path": "../data"
+    },
+    {
+      "path": "../Chapter02"
+    },
+    {
+      "path": "../Chapter03"
+    },
+    {
+      "path": "../Chapter04"
+    },
+    {
+      "path": "../Chapter05"
+    },
+    {
+      "path": "../Chapter06"
+    },
+    {
+      "path": "../Chapter07"
+    },
+    {
+      "path": "../Chapter08"
+    },
+    {
+      "path": "../Chapter10"
+    },
+    {
+      "path": "../Chapter11"
+    },
+    {
+      "path": "../Chapter12"
+    },
+  ],
+  "settings": {}
+}
