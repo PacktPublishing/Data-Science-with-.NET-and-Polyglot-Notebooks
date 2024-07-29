@@ -1,0 +1,442 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"name":"csharp"}]}}
+
+#!markdown
+
+# Chapter 13: Enriching documentation with Mermaid diagrams
+
+#!markdown
+
+## Flowcharts
+
+#!mermaid
+
+flowchart
+    load[Load Data]    
+    load --> split[Split Data]
+    split --> train[Train Model]
+    train --> test[Test Model]
+    split --> test
+    test --> predict[Predict New Values]
+
+#!mermaid
+
+flowchart LR
+    load[Load Data]    
+    load -- "DataFrame" --> split[Split Data]
+    split -- "70-90%" --> train[Train Model]
+    train -- "Trained Model" --> test[Evaluate Model]
+    split -- "10-30%" --> test
+    test --> predict[Predict New Values]
+
+#!mermaid
+
+flowchart LR
+    load[Load Data]    
+    split[Split Data]
+    train[Train Model]
+    test[Evaluate Model]
+    predict[Predict New Values]
+    subgraph Training
+        split -- "70-90%" --> train
+        train -- "Trained Model" --> test
+        split -- "10-30%" --> test
+    end
+    load -- "DataFrame" --> split
+    test --> predict
+
+#!mermaid
+
+flowchart LR
+    load[Load Data]    
+    split[Split Data]
+    train[Train Model]
+    test[Evaluate Model]
+    predict([Predict New Values])
+    saved[(Saved Model)]
+    metrics[[Evaluation Metrics]]
+    subgraph Training
+        split -- "70-90%" --> train
+        train -.-> saved
+        train --> test
+        split -- "10-30%" --> test
+    end
+    load -- "DataFrame" --> split
+    saved -.-> predict
+    test -.-> metrics
+
+#!markdown
+
+[Flowchart Documentation](https://mermaid.js.org/syntax/flowchart.html)
+
+#!markdown
+
+## Class Diagrams
+
+#!mermaid
+
+classDiagram
+    direction LR
+
+    GameObject <|-- Character
+    Character *-- Weapon
+    GameObject <|-- Projectile
+    Weapon o-- Projectile
+
+    class GameObject {
+        Point Pos
+        void Update()
+        void Render()
+    }
+
+    class Character {
+        int Health
+        void Damage(int amount)
+        bool IsAlive()
+    }
+
+    class Weapon {
+        string Name
+        int FireRate
+        void Shoot()
+    }
+
+    class Projectile {
+        Point Pos
+        float Speed
+        void Update()
+        void OnCollision(GameObject other)
+    }
+
+#!mermaid
+
+classDiagram
+    direction LR
+
+    GameObject <|-- Character
+    Character *-- Weapon : Has
+    GameObject <|-- Projectile
+    Weapon o-- Projectile : Fires
+    
+    class GameObject {
+        <<Abstract>>
+        Point Pos
+        void Update()
+        void Render()
+    }
+
+    class Character {
+        int Health
+        void Damage(int amount)
+        bool IsAlive()
+    }
+
+    class Weapon {
+        string Name
+        int FireRate
+        void Shoot()
+    }
+
+    note for Projectile "All weapons launch water balloons"
+
+    class Projectile {
+        Point Pos
+        float Speed
+        void Update()
+        void OnCollision(GameObject other)
+    }
+
+#!markdown
+
+[Class Diagram Documentation](https://mermaid.js.org/syntax/classDiagram.html)
+
+#!markdown
+
+## Entity Relationship Diagrams
+
+#!mermaid
+
+erDiagram
+    Clubs ||--|{ Players : "Currently in"
+    Players }|--o{ Matches : "Plays in"
+    Matches }|--|| Clubs : "Home Club"
+    Matches }|--|| Clubs : "Visiting Club"
+
+#!mermaid
+
+erDiagram
+    Clubs ||--|{ Players : "Currently in"
+    Players }|--o{ Matches : "Plays in"
+    Matches }|--|| Clubs : "Home Club"
+    Matches }|--|| Clubs : "Visiting Club"
+
+    Clubs {
+        int ClubID
+        string Name
+        string Location
+    }
+
+    Players {
+        int PlayerID
+        string Name
+        int CurrentClubID
+        string Position
+    }
+
+    Matches {
+        int MatchID
+        int HomeClubID
+        int VisitingClubID
+        int HomeScore
+        int VisitingScore
+        DateTime Date
+    }
+
+#!mermaid
+
+erDiagram
+    Clubs ||--|{ Players : "Currently in"
+    Players }|--o{ Matches : "Plays in"
+    Matches }|--|| Clubs : "Home Club"
+    Matches }|--|| Clubs : "Visiting Club"
+
+    Clubs {
+        int ClubID PK
+        string Name
+        string Location
+    }
+
+    Players {
+        int PlayerID PK
+        string Name
+        int CurrentClubID FK
+        string Position
+    }
+
+    Matches {
+        int MatchID PK
+        int HomeClubID FK
+        int VisitingClubID FK
+        int HomeScore
+        int VisitingScore
+        DateTime Date
+    }
+
+#!markdown
+
+[Entity Relationship Diagram Documentation](https://mermaid.js.org/syntax/entityRelationshipDiagram.html)
+
+#!markdown
+
+## State Diagrams
+
+#!mermaid
+
+stateDiagram-v2
+    Ready --> Combat
+    Combat --> Retreat
+    Combat --> Idle
+    Idle --> Combat
+    Idle --> Retreat
+
+#!mermaid
+
+stateDiagram-v2
+    direction LR
+    [*] --> Ready
+    Ready --> Combat : Player Detected
+    Combat --> Retreat : Health < 10%
+    Combat --> Idle : No Targets
+    Idle --> Combat : Enemy Detected
+    Idle --> Retreat : No Targets after 1 minute
+    Retreat --> [*]
+
+#!mermaid
+
+stateDiagram-v2
+    direction LR
+    [*] --> Ready
+    Ready --> Combat : Player Detected
+    state Combat {
+        direction TB
+        [*] --> Attacking
+        Attacking --> Reloading : Ammo <= 0
+        Reloading --> Attacking : Ammo == Max
+    }
+    Combat --> Retreat : Health < 10%
+    Combat --> Idle : No Targets
+    Idle --> Combat : Enemy Detected
+    Idle --> Retreat : No Targets after 1 minute
+    Retreat --> [*]
+
+#!mermaid
+
+stateDiagram-v2
+    direction LR
+    [*] --> Ready
+    Ready --> Combat : Player Detected
+    state Combat {
+        direction TB
+        [*] --> Attacking
+        state after_attack <<choice>>
+        Attacking --> after_attack
+        after_attack --> Reloading : Ammo <= 0
+        after_attack --> Attacking : Ammo > 0
+        Reloading --> Attacking
+    }
+
+    Combat --> Retreat : Health < 10%
+    Combat --> Idle : No Targets
+    Idle --> Combat : Enemy Detected
+    Idle --> Retreat : No Targets after 1 minute
+    Retreat --> [*]
+
+#!markdown
+
+[State Diagram Documentation](https://mermaid.js.org/syntax/stateDiagram.html)
+
+#!markdown
+
+## Sequence Diagrams
+
+#!mermaid
+
+sequenceDiagram
+    Client->>Server: Request Data
+    Server->>Database: SQL Query
+    Database-->>Server: Query Results
+    Server-->>Client: JSON Data
+
+#!mermaid
+
+sequenceDiagram
+    autonumber
+    participant Client
+    box transparent Azure
+        participant Server
+        participant Database
+    end
+    note right of Database: Azure SQL Instance
+    Client->>Server: Request Data
+    note over Client, Server: No auth required
+    Server->>Database: SQL Query
+    Database-->>Server: Query Results
+    Server-->>Client: JSON Data
+
+#!mermaid
+
+sequenceDiagram
+    actor Client
+    Client->>+Controller: GET /football/clubs
+    Controller->>+Service Layer: GetFootballClubs
+    Service Layer->>+Database: SELECT * FROM Clubs
+    Database-->>-Service Layer: Query Results
+    Service Layer-->>-Controller: List<Club>
+    Controller-->>-Client: 200 OK with JSON Data
+
+#!mermaid
+
+sequenceDiagram
+    actor Client
+    Client->>Controller: GET /football/clubs/42
+    Controller->>Service Layer: GetFootballClub(42)
+    Service Layer->>Database: SELECT * FROM Clubs WHERE ClubID = 42
+    Database-->>Service Layer: Query Results
+    alt Club Found
+        Service Layer-->>Controller: Club
+        Controller-->>Client: 200 OK with JSON Data
+    else Club Not Found
+        Service Layer-->>Controller: NULL
+        Controller-->>Client: 404 Not Found
+    end
+
+#!markdown
+
+[Sequence Diagram Documentation](https://mermaid.js.org/syntax/sequenceDiagram.html)
+
+#!markdown
+
+## git Graphs
+
+#!mermaid
+
+%%{init: { 'theme': 'base' } }%%
+gitGraph LR:
+    commit
+    branch "fix/1234"
+        commit
+        commit
+    checkout main
+        commit
+        merge "fix/1234"
+        commit
+
+#!mermaid
+
+%%{init: { 'theme': 'base' } }%%
+gitGraph TB:
+    commit
+    branch "fix/1234"
+        commit
+        commit
+    checkout main
+        commit
+        merge "fix/1234"
+        commit
+
+#!mermaid
+
+%%{init: { 'theme': 'base' } }%%
+gitGraph LR:
+    commit
+    branch release
+    checkout main
+    branch "feat/5678"
+        commit
+    checkout main
+    branch "fix/1234"
+        commit
+        commit
+    checkout "release"
+        merge "fix/1234"
+    checkout main
+        merge "fix/1234"
+    checkout "feat/5678"
+        commit
+    checkout main
+        merge "feat/5678"
+
+#!mermaid
+
+%%{init: { 'theme': 'base' } }%%
+gitGraph LR:
+    commit id: "Initial Version" tag: "v1.0.0"
+    branch release
+    checkout main
+    branch "fix/1234"
+        commit id: "Initial attempt"
+        commit id: "Revese initial attempt" type: reverse
+        commit id: "Fixed Null Ref" type: highlight
+    checkout "release"
+        merge "fix/1234" tag: "v1.0.1"
+    checkout main
+        merge "fix/1234"
+
+#!mermaid
+
+%%{init: { 'theme': 'base' } }%%
+gitGraph LR:
+    commit id: "Initial Version" tag: "v1.0.0"
+    branch release
+    checkout main
+    branch "fix/1234"
+        commit id: "Fixed Null Ref"
+    checkout main
+        merge "fix/1234"
+    checkout "release"
+        cherry-pick id:"Fixed Null Ref" tag: "v1.0.1"
+
+#!markdown
+
+[git Graph Documentation](https://mermaid.js.org/syntax/gitgraph.html)
