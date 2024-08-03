@@ -12,13 +12,11 @@
 
 #!mermaid
 
-flowchart
-    load[Load Data]    
-    load --> split[Split Data]
+flowchart LR
+    load[Load Data] --> split[Split Data]
     split --> train[Train Model]
     train --> test[Test Model]
-    split --> test
-    test --> predict[Predict New Values]
+    split --> test --> predict[Predict New Values]
 
 #!mermaid
 
@@ -73,6 +71,16 @@ flowchart LR
 #!markdown
 
 ## Class Diagrams
+
+#!mermaid
+
+classDiagram
+    direction LR
+
+    GameObject <|-- Character
+    Character *-- Weapon
+    GameObject <|-- Projectile
+    Weapon o-- Projectile
 
 #!mermaid
 
@@ -234,6 +242,7 @@ erDiagram
 #!mermaid
 
 stateDiagram-v2
+    direction LR
     Ready --> Combat
     Combat --> Retreat
     Combat --> Idle
@@ -244,8 +253,7 @@ stateDiagram-v2
 
 stateDiagram-v2
     direction LR
-    [*] --> Ready
-    Ready --> Combat : Player Detected
+    [*] --> Combat : Player Detected
     Combat --> Retreat : Health < 10%
     Combat --> Idle : No Targets
     Idle --> Combat : Enemy Detected
@@ -256,8 +264,7 @@ stateDiagram-v2
 
 stateDiagram-v2
     direction LR
-    [*] --> Ready
-    Ready --> Combat : Player Detected
+    [*] --> Combat : Player Detected
     state Combat {
         direction TB
         [*] --> Attacking
@@ -274,8 +281,7 @@ stateDiagram-v2
 
 stateDiagram-v2
     direction LR
-    [*] --> Ready
-    Ready --> Combat : Player Detected
+    [*] --> Combat : Player Detected
     state Combat {
         direction TB
         [*] --> Attacking
@@ -341,7 +347,7 @@ sequenceDiagram
     actor Client
     Client->>Controller: GET /football/clubs/42
     Controller->>Service Layer: GetFootballClub(42)
-    Service Layer->>Database: SELECT * FROM Clubs WHERE ClubID = 42
+    Service Layer->>Database: SQL Query
     Database-->>Service Layer: Query Results
     alt Club Found
         Service Layer-->>Controller: Club
@@ -363,19 +369,6 @@ sequenceDiagram
 
 %%{init: { 'theme': 'base' } }%%
 gitGraph LR:
-    commit
-    branch "fix/1234"
-        commit
-        commit
-    checkout main
-        commit
-        merge "fix/1234"
-        commit
-
-#!mermaid
-
-%%{init: { 'theme': 'base' } }%%
-gitGraph TB:
     commit
     branch "fix/1234"
         commit
@@ -416,7 +409,7 @@ gitGraph LR:
     checkout main
     branch "fix/1234"
         commit id: "Initial attempt"
-        commit id: "Revese initial attempt" type: reverse
+        commit id: "Reverse initial attempt" type: reverse
         commit id: "Fixed Null Ref" type: highlight
     checkout "release"
         merge "fix/1234" tag: "v1.0.1"

@@ -1,0 +1,301 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"name":"csharp"}]}}
+
+#!markdown
+
+# Chapter 14: Extending Polyglot Notebooks
+
+#!markdown
+
+## Formatters
+
+#!csharp
+
+public class Footballer 
+{
+    public string Name {get; set;}
+    public string Position {get; set;}
+    public decimal AverageGoals {get; set;}
+    public decimal AverageAssists {get; set;}
+    private decimal? GoalToAssistRatio 
+        => AverageAssists > 0 
+            ? AverageGoals / AverageAssists
+            : null;
+}
+
+#!csharp
+
+using System.Text.Json;
+using System.IO;
+
+string json = File.ReadAllText("Footballers.json");
+List<Footballer> team = JsonSerializer.Deserialize<List<Footballer>>(json);
+
+Footballer bestPlayer = team.OrderByDescending(p => p.AverageGoals).First();
+bestPlayer
+
+#!csharp
+
+team
+
+#!csharp
+
+using Microsoft.DotNet.Interactive.Formatting;
+
+Formatter.ListExpansionLimit = team.Count;
+team
+
+#!csharp
+
+Formatter.Register<IEnumerable<Footballer>>((players, writer) =>
+{
+    writer.WriteLine("<h3>Team Scoring Stats</h3>");
+    writer.WriteLine("<table>");
+    writer.WriteLine("<thead><tr>");
+    writer.WriteLine("<th>Name</th><th>Position</th><th>Avg Goals</th><th>Avg Assists</th>");
+    writer.WriteLine("</tr></thead>");
+    foreach (var p in players)
+    {
+        writer.WriteLine("<tr>");
+        writer.WriteLine($"<td>{p.Name}</td><td>{p.Position}</td><td>{p.AverageGoals}</td><td>{p.AverageAssists}</td>");
+        writer.WriteLine("</tr>");
+    }
+    writer.WriteLine("</table>");
+}, "text/html");
+
+team.Take(5)
+
+#!markdown
+
+[Formatting Documentation](https://github.com/dotnet/interactive/blob/main/docs/formatting.md)
+
+#!markdown
+
+## Magic Commands
+
+#!csharp
+
+#!about
+
+#!csharp
+
+#!time
+
+for (int i = 0; i < int.MaxValue; i++) {
+    // Do nothing
+}
+
+#!csharp
+
+#!lsmagic
+
+#!markdown
+
+[Magic Command Documentation](https://github.com/dotnet/interactive/blob/main/docs/magic-commands.md)
+
+#!markdown
+
+## Extensions
+
+#!csharp
+
+using Microsoft.DotNet.Interactive.Directives;
+
+public class ReflectDirective : KernelActionDirective
+{
+    public ReflectDirective() : base("#!reflect")
+    {
+        Description = "Reflects the internal state of the object";
+        Parameters.Add(VariableNameParameter);
+    }
+
+    public KernelDirectiveParameter VariableNameParameter { get; } =
+        new("--variable-name")
+        {
+            Description = "The name of the variable to reflect",
+            Required = true
+        };
+}
+
+#!csharp
+
+KernelDirectiveParameter variableNameParameter = new("--variable-name")
+{
+    Description = "The name of the variable to reflect",
+    Required = true,
+    AllowImplicitName = true
+};
+
+#!csharp
+
+KernelActionDirective reflectDirective = new("#!reflect")
+{
+    Description = "Reflects the internal state of the object",
+    Parameters = { variableNameParameter }
+};
+
+#!csharp
+
+using Microsoft.DotNet.Interactive.Commands;
+using System.CommandLine;
+
+public class VariableNameCommand : KernelCommand
+{
+    public string VariableName { get; set; }
+}
+
+#!csharp
+
+using System.Reflection;
+
+public Dictionary<string, string> ReflectObject(object obj)
+{
+    Dictionary<string, string> properties = new();
+
+    Type t = obj.GetType();
+    BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+    foreach (var prop in t.GetProperties(flags))
+    {
+        object? value = prop.GetValue(obj);
+        properties[prop.Name] = value?.ToString() ?? "null";
+    }
+    return properties;
+}
+
+#!csharp
+
+using Microsoft.DotNet.Interactive;
+using Microsoft.DotNet.Interactive.CSharp;
+
+CSharpKernel csKernel = (CSharpKernel) Kernel.Current.FindKernelByName("csharp");
+
+csKernel.AddDirective<VariableNameCommand>(reflectDirective, 
+    (command, context) => {
+        string name = command.VariableName;
+        if (csKernel.TryGetValue(name, out object obj)) {
+            var properties = ReflectObject(obj);
+            properties.Display();            
+        } else {
+            context.DisplayStandardError($"Could not find {name}");
+        }
+
+        return Task.CompletedTask;
+    }
+);
+
+#!csharp
+
+#!reflect bestPlayer
+
+#!csharp
+
+#!lsmagic
+
+#!markdown
+
+[Extension Documentation](https://github.com/dotnet/interactive/blob/main/docs/extending-dotnet-interactive.md)
+
+[Magic Command API Redesign Documentation](https://github.com/dotnet/interactive/issues/3567)
+
+#!markdown
+
+## Sending Commands to Kernels
+
+#!csharp
+
+string[] steps = new[]
+{
+    "Load Data",
+    "Train / Test Split",
+    "Model Training",
+    "Model Evaluation",
+    "Deployment & Predictions"
+};
+steps
+
+#!mermaid
+
+flowchart LR
+    s1[Load Data] 
+    s1 --> s2[Train / Test Split]
+    s2 --> s3[Model Training]
+    s3 --> s4[Model Evaluation]
+    s4 --> s5[Deployment & Predictions]
+
+#!csharp
+
+public string GenerateMermaidFlowchart(IEnumerable<string> items)
+{
+    List<string> itemList = items?.ToList() ?? new();
+    StringBuilder sb = new();
+    sb.AppendLine("flowchart LR");
+
+    string first = items.FirstOrDefault() ?? "No Items";
+    sb.AppendLine($"    s0[{first}]");
+    for (int i = 1; i < itemList.Count; i++)
+    {
+        sb.AppendLine($"    s{i - 1} --> s{i}[{itemList[i]}]");
+    }
+    return sb.ToString();
+}
+
+GenerateMermaidFlowchart(steps)
+
+#!mermaid
+
+flowchart LR
+    s0[Load Data]
+    s0 --> s1[Train / Test Split]
+    s1 --> s2[Model Training]
+    s2 --> s3[Model Evaluation]
+    s3 --> s4[Deployment & Predictions]
+
+#!csharp
+
+Kernel mermaidKernel = Kernel.Current.FindKernelByName("mermaid");
+mermaidKernel
+
+#!csharp
+
+KernelActionDirective flowchartDirective = new("#!flow")
+{
+    Description = "Generates a Mermaid diagram consisting of a flowchart of sequential items",
+    Parameters = { variableNameParameter }
+};
+
+#!csharp
+
+csKernel.AddDirective<VariableNameCommand>(flowchartDirective, 
+    async (command, context) => {
+        string name = command.VariableName;
+        if (csKernel.TryGetValue(name, out object obj)) {
+            IEnumerable<string> items = (IEnumerable<string>) obj;
+
+            string flowchart = GenerateMermaidFlowchart(items.ToArray());
+
+            context.DisplayStandardOut(flowchart);
+
+            SubmitCode submitCommand = new(flowchart, targetKernelName: mermaidKernel.Name);
+            await KernelInvocationContext.Current.HandlingKernel.RootKernel.SendAsync(submitCommand);
+        } else {
+            context.DisplayStandardError($"Could not find {name}");
+        }
+    }
+);
+
+#!csharp
+
+string[] steps = new[]
+{
+    "Load Data",
+    "Train / Test Split",
+    "Model Training",
+    "Model Evaluation",
+    "Deployment & Predictions"
+};
+steps
+
+#!csharp
+
+#!flow steps
