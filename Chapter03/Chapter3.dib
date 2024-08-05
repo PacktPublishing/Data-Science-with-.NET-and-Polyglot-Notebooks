@@ -4,13 +4,17 @@
 
 #!markdown
 
-# Chapter 3
+# Chapter 3 - Getting Data & Code into Your Notebooks
 
 This notebook covers importing code and data in Polyglot Notebooks as part of "Data Science in .NET with Polyglot Notebooks" by Matt Eland.
 
 #!markdown
 
-## Importing Code
+## Importing Code and NuGet packages
+
+#!markdown
+
+### Importing code files
 
 #!csharp
 
@@ -43,6 +47,10 @@ This will fail because `Game` depends on `FootballClub` which has not been loade
 
 #!markdown
 
+### Importing .dib and .ipynb files
+
+#!markdown
+
 Below this cell we'll import `NestedNotebook.dib`
 
 #!csharp
@@ -56,6 +64,10 @@ The previous content was from `NestedNotebook.dib`
 #!csharp
 
 message
+
+#!markdown
+
+### Importing NuGet packages
 
 #!csharp
 
@@ -80,6 +92,14 @@ JsonConvert.SerializeObject(player, format)
 
 #r "nuget:Microsoft.Data.Analysis,0.21.1"
 
+#!markdown
+
+## Reading CSV Data
+
+#!markdown
+
+### Reading CSV data into a DataFrame
+
 #!csharp
 
 using Microsoft.Data.Analysis;
@@ -87,6 +107,10 @@ using Microsoft.Data.Analysis;
 DataFrame df = DataFrame.LoadCsv("Players.csv");
 
 df.Head(5)
+
+#!markdown
+
+### Specialized CSV loading scenarios
 
 #!csharp
 
@@ -98,13 +122,17 @@ df.Head(5)
 
 DataFrame.LoadCsv("Players.csv", guessRows: 25)
 
+#!markdown
+
+This next cell won't look right because we're wor
+
 #!csharp
 
 DataFrame.LoadCsv("Players.tsv", separator:'\t')
 
 #!markdown
 
-## JSON
+## Getting JSON data with PowerShell
 
 #!pwsh
 
@@ -164,15 +192,7 @@ joke
 
 #!markdown
 
-## DataFrames from Objects
-
-#!csharp
-
-List<DadJoke> jokes = new() {
-    joke
-};
-
-jokes
+## Building DataFrames from Objects
 
 #!csharp
 
@@ -188,6 +208,7 @@ properties
 
 #!csharp
 
+DadJoke[] jokes = [ joke ];
 DataFrame dfObjects = new();
 
 foreach (var info in properties) {
@@ -211,7 +232,7 @@ dfObjects
 
 #!markdown
 
-## SQL
+## Connecting to databases with SQL
 
 #!csharp
 
@@ -309,7 +330,7 @@ dfJokes.Head(5)
 
 #!markdown
 
-## KQL
+## Querying Kusto clusters with KQL
 
 #!csharp
 
