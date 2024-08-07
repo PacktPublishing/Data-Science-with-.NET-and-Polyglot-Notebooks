@@ -4,195 +4,353 @@
 
 #!markdown
 
-# Chapter 6
+# Chapter 6: Multivariate Data
 
-#!mermaid
-
-flowchart TD
-    data[Data]
-    algorithm[Algorithm Selection]
-    data -- trains --> algorithm -- results in --> model[Trained Model]
-    hyper[Hyperparameters] -- configure --> algorithm
-
-#!mermaid
-
-flowchart TD
-    data[Data] --> split[Train / Test Split]
-    split -- 70 to 90% --> trainData[Training Data]
-    split -- 10 to 30% --> testData[Test Data]
-    algorithm[Algorithm Selection]
-    trainData -- trains --> algorithm -- results in --> model[Trained Model]
-    testData -- validates --> model -- produces --> metrics[Evaluation Metrics]
-    hyper[Hyperparameters] -- configure --> algorithm
-
-#!csharp
+#!fsharp
 
 #r "nuget:Microsoft.Data.Analysis,0.21.1"
 
-using Microsoft.Data.Analysis;
+open Microsoft.Data.Analysis
 
-DataFrame df = DataFrame.LoadCsv("PlayerRetirement.csv");
+let df = DataFrame.LoadCsv("JoinedStats.csv")
+df.Head(5)
 
-// The first 12 rows follow a player's career in our dataset
-df.Head(12)
+#!fsharp
 
-#!csharp
+df.Columns.Remove("Id")
+df.Columns.Remove("club_id")
+df.Head(5)
 
-df.Columns.Remove("PlayerId");
-df.Columns.Remove("Season");
+#!fsharp
 
-#!csharp
+let sortedValues = df["market_value_in_eur"] 
+                |> Seq.cast<single>
+                |> Seq.map float
+                |> Array.ofSeq
+                |> Array.sort
 
-#r "nuget:Microsoft.ML,3.0.1"
+sortedValues
 
-using Microsoft.ML;
-using Microsoft.ML.Data;
+#!fsharp
 
-#!csharp
+let marketValues = df["market_value_in_eur"] |> Seq.cast<single>
+let positions = df["position"] |> Seq.cast<string>
+let clubs = df["club_name"] |> Seq.cast<string>
+let goals = df["goals"] |> Seq.cast<single>
+let assists = df["assists"] |> Seq.cast<single>
+let minutesPerGame = df["minutes_played"] |> Seq.cast<single>
+let playerNames = df["name"] |> Seq.cast<string>
+let redCards = df["red_cards"] |> Seq.cast<single>
 
-MLContext context = new();
-IDataView data = df;
+#!fsharp
 
-var dataSplit = context.Data.TrainTestSplit(data, 
-    testFraction: 0.3, 
-    seed: 123);
+#r "nuget:Plotly.NET,5.0.0"
+#r "nuget:Plotly.NET.Interactive,5.0.0"
+#r "nuget:MathNet.Numerics,5.0.0"
+
+open MathNet.Numerics.Statistics
+open Plotly.NET
+
+#!markdown
+
+## Multivariate Analysis
+
+#!markdown
+
+### Univariate Plots with multiple dimensions
+
+#!fsharp
+
+Chart.BoxPlot(Y = marketValues, X = positions)
+    |> Chart.withTitle "Player Market Value Distribution by Position"
+    |> Chart.withSize(500, 350)
+
+#!fsharp
+
+Chart.Violin(Y = marketValues, X = positions)
+    |> Chart.withTitle "Player Market Value Distribution by Position"
+    |> Chart.withSize(500, 350)
+
+#!fsharp
+
+Chart.BoxPlot(Y = minutesPerGame, X = positions)
+    |> Chart.withTitle "Playtime by Position"
+    |> Chart.withSize(500, 350)
+
+#!fsharp
+
+Chart.BoxPlot(Y = marketValues, X = clubs, MultiText=playerNames)
+    |> Chart.withTitle "Market Value by Club"
+    |> Chart.withSize(700, 400)
+
+#!fsharp
+
+Chart.BoxPlot(Y = goals, X = clubs, MultiText=playerNames)
+    |> Chart.withTitle "Goals per game by Club"
+    |> Chart.withSize(700, 400)
+
+#!markdown
+
+### Scatter Plot
+
+#!fsharp
+
+Chart.Point(x = goals, 
+            y = minutesPerGame,
+            MultiText = playerNames)
+    |> Chart.withTitle "Goals per Game vs Minutes per Game"
+    |> Chart.withXAxisStyle(TitleText = "Goals per Game")
+    |> Chart.withYAxisStyle(TitleText = "Minutes per Game")
+
+#!fsharp
+
+Chart.Point(x = minutesPerGame, 
+            y = marketValues,
+            MultiText = playerNames)
+    |> Chart.withTitle "Market Valuation vs Playtime"
+    |> Chart.withSize(600, 400)    
+    |> Chart.withXAxisStyle(TitleText = "Minutes per Game")
+    |> Chart.withYAxisStyle(TitleText = "Market Valuation")
+
+#!fsharp
+
+Chart.Point(x = goals, 
+            y = assists,
+            MultiText = playerNames)
+    |> Chart.withTitle "Goals vs Assists Per Game"
+    |> Chart.withSize(400, 400)    
+    |> Chart.withXAxisStyle(TitleText = "Goals", MinMax=(0,2))
+    |> Chart.withYAxisStyle(TitleText = "Assists", MinMax=(0,2))
+
+#!fsharp
+
+Chart.Point(x = goals, 
+            y = assists,
+            MultiText = playerNames,
+            MarkerColor = (Color.fromColorScaleValues minutesPerGame))
+    |> Chart.withTitle "Goals vs Assists Colorized by Play Time"
+    |> Chart.withSize(400, 400)    
+    |> Chart.withXAxisStyle(TitleText = "Goals", MinMax=(-0.1,1.6))
+    |> Chart.withYAxisStyle(TitleText = "Assists", MinMax=(-0.1,1.6))
+    |> Chart.withMarkerStyle(ShowScale = true)
+
+#!fsharp
+
+Chart.Point(x = goals, 
+            y = assists,
+            MultiText = playerNames,
+            MarkerColor = (Color.fromColorScaleValues marketValues))
+    |> Chart.withTitle "Goals vs Assists Colorized by Valuation"
+    |> Chart.withSize(400, 400)    
+    |> Chart.withXAxisStyle(TitleText = "Goals", MinMax=(-0.1,1.6))
+    |> Chart.withYAxisStyle(TitleText = "Assists", MinMax=(-0.1,1.6))
+    |> Chart.withMarkerStyle(ShowScale = true)
+
+#!fsharp
+
+Chart.Point3D(x = goals, 
+              y = assists, 
+              z = marketValues, 
+              MultiText = playerNames,
+              MarkerColor = (Color.fromColorScaleValues marketValues))
+    |> Chart.withTitle "Goals vs Assists vs Valuation"
+    |> Chart.withXAxisStyle(TitleText = "Goals", Id = StyleParam.SubPlotId.Scene 1)
+    |> Chart.withYAxisStyle(TitleText = "Assists", Id = StyleParam.SubPlotId.Scene 1)
+    |> Chart.withZAxisStyle(TitleText = "MarketValue")
+    |> Chart.withSize (800, 600)
+
+#!fsharp
+
+Chart.Point3D(x = goals, 
+              y = assists, 
+              z = marketValues, 
+              MultiText = playerNames,
+              MarkerColor = (Color.fromColorScaleValues minutesPerGame))
+    |> Chart.withTitle "Goals vs Assists vs Valuation"
+    |> Chart.withXAxisStyle(TitleText = "Goals", Id = StyleParam.SubPlotId.Scene 1)
+    |> Chart.withYAxisStyle(TitleText = "Assists", Id = StyleParam.SubPlotId.Scene 1)
+    |> Chart.withZAxisStyle(TitleText = "MarketValue")
+    |> Chart.withSize (800, 600)
+
+#!markdown
+
+### Correlation Matrix
+
+#!fsharp
+
+Correlation.Pearson(goals |> Seq.map float, 
+                    assists |> Seq.map float)
+
+#!fsharp
+
+Correlation.Pearson(assists |> Seq.map float, 
+                    redCards |> Seq.map float)
+
+#!fsharp
+
+df.Columns 
+    |> Seq.map (fun col -> col.Name) 
+    |> Array.ofSeq
+
+#!fsharp
+
+let columnsToAnalyze = 
+    df.Columns 
+    |> Seq.filter (fun col -> col.GetType() =typeof<SingleDataFrameColumn>)
+    |> Seq.map (fun col -> col.Name)
+    |> Array.ofSeq
+
+let numColumns = Array.length columnsToAnalyze
+
+columnsToAnalyze
+
+#!fsharp
+
+let results : float[][] = Array.zeroCreate numColumns
+for y = 0 to numColumns - 1 do
+    let colY = df[columnsToAnalyze[y]] 
+                |> Seq.cast<single> 
+                |> Seq.map float
+    let rowResults : float[] = Array.create numColumns nan
+    results.[y] <- rowResults
+
+    for x = 0 to y do
+        let colX = df[columnsToAnalyze[x]]
+                        |> Seq.cast<single> 
+                        |> Seq.map float
+        rowResults.[x] <- Correlation.Pearson(colX, colY)
+
+results
+
+#!fsharp
+
+Chart.Heatmap(zData=results, 
+            ReverseYAxis=true,
+            X=columnsToAnalyze,
+            Y=columnsToAnalyze)
+    |> Chart.withTitle "Correlation Matrix"
+
+#!markdown
+
+## More complex version
+Function-oriented and supports boolean columns as well
+
+#!fsharp
+
+let IdentifyColumnsToAnalyze (df: DataFrame) =
+    df.Columns 
+    |> Seq.filter (fun col ->
+            let t = col.GetType()
+            t = typeof<SingleDataFrameColumn> || t = typeof<PrimitiveDataFrameColumn<bool>>
+        )
+    |> Seq.map (fun col -> col.Name)
+    |> Array.ofSeq
+
+#!fsharp
+
+open System
+
+let getSingleFromBool (input: Nullable<bool>): single =
+    match input.HasValue with
+        | false -> 0f
+        | true -> 
+            match input.Value with
+            | true -> 1.0f
+            | false -> 0.0f
+
+let getColumnValue( df: DataFrame, colName: string) : float seq =
+    match df.Columns.[colName] with
+    | :? SingleDataFrameColumn as singleCol ->
+        singleCol 
+        |> Seq.cast<single> 
+        |> Seq.map float
+    | :? PrimitiveDataFrameColumn<bool> as boolCol ->
+        boolCol
+        |> Seq.map getSingleFromBool
+        |> Seq.map float
+    | _ -> // Expand to support additional types as needed
+        Seq.empty<float>
+
+#!fsharp
+
+let buildCorrelationMatrix (df: DataFrame) =
+    // Figure out what columns we're analyzing
+    let columnsToAnalyze = df |> IdentifyColumnsToAnalyze
+    let numColumns = Array.length columnsToAnalyze
     
-IDataView trainData = dataSplit.TrainSet;
-IDataView testData = dataSplit.TestSet;
+    // Build a jagged array containing the correlation results
+    let results : float[][] = Array.zeroCreate numColumns
+    for y = 0 to numColumns - 1 do
+        let colY = getColumnValue(df, columnsToAnalyze[y])
+        let rowResults : float[] = Array.create numColumns nan
+        results.[y] <- rowResults
 
-#!csharp
+        for x = 0 to y do
+            let colX = getColumnValue(df, columnsToAnalyze[x])
+            rowResults.[x] <- Correlation.Pearson(colX, colY)
+    
+    // Return a tuple with the results and the columns analyzed
+    results, columnsToAnalyze
 
-#r "nuget:Microsoft.ML.AutoML,0.21.1"
+#!fsharp
 
-using Microsoft.ML.AutoML;
+let results, correlationColumns = buildCorrelationMatrix(df)
+results
 
-#!csharp
+#!fsharp
 
-uint maxSeconds = 10;
-BinaryExperimentSettings settings = new() {
-    MaxExperimentTimeInSeconds = maxSeconds,
-    //MaxModels = 1,
-    OptimizingMetric = BinaryClassificationMetric.F1Score,
-};
-settings
+let plotCorrelationMatrix (correlationMatrix, correlationColumns) =
+    Chart.Heatmap(zData=correlationMatrix, 
+                ReverseYAxis=true,
+                X=correlationColumns,
+                Y=correlationColumns)
+        |> Chart.withTitle "Correlation Matrix"
 
-#!csharp
+df 
+|> buildCorrelationMatrix 
+|> plotCorrelationMatrix
+|> Chart.withTitle "Feature Correlations for Football Players"
 
-BinaryClassificationExperiment binaryExperiment = 
-    context.Auto().CreateBinaryClassificationExperiment(settings);
+#!fsharp
 
-string label = "IsLastSeason";
-ExperimentResult<BinaryClassificationMetrics> result = 
-    binaryExperiment.Execute(trainData, testData, labelColumnName: label);
+// This shows that age and BirthYear are inversely correlated. Let's remove BirthYear
+df.Columns.Remove("BirthYear")
 
-result
+#!markdown
 
-#!csharp
+## One Hot Encoding
+Let's add some boolean columns
 
-result.RunDetails.Count()
+#!fsharp
 
-#!csharp
+let oneHotEncodeColumn (df: DataFrame, column: StringDataFrameColumn) =
+    let values = column |> Seq.distinct
 
-RunDetail<BinaryClassificationMetrics> bestRun = result.BestRun;
-bestRun
+    for v in values do
+        df["Is " + v + "?"] <- column.ElementwiseEquals(v)
 
-#!csharp
+#!fsharp
 
-BinaryClassificationMetrics runMetrics = bestRun.ValidationMetrics;
+// Let's add some columns for positions
+oneHotEncodeColumn(df, df["position"] :?> StringDataFrameColumn)
 
-runMetrics.ConfusionMatrix.GetFormattedConfusionTable()
+#!fsharp
 
-#!csharp
+// Let's re-render
+df 
+|> buildCorrelationMatrix 
+|> plotCorrelationMatrix
+|> Chart.withTitle "Feature Correlations for Football Players"
 
-runMetrics
+#!fsharp
 
-#!csharp
+// Let's add some columns for sub-positions
+oneHotEncodeColumn(df, df["sub_position"] :?> StringDataFrameColumn)
 
-TransformerChain<ITransformer> bestModel = bestRun.Model as TransformerChain<ITransformer>;
-bestModel
+#!fsharp
 
-#!csharp
-
-var importance = context.BinaryClassification
-	.PermutationFeatureImportanceNonCalibrated(
-		bestModel, 
-	    bestModel.Transform(testData), 
-	    labelColumnName: label,
-	    permutationCount: 3);
-
-var orderedFeatures = importance.OrderByDescending(k => Math.Abs(k.Value.F1Score.Mean));
-foreach (var kvp in orderedFeatures) {
-    Console.WriteLine($"{kvp.Key} {kvp.Value.F1Score.Mean}");
-}
-
-#!csharp
-
-public class PlayerSeason {
-    public float YellowCards {get; set;}
-    public float RedCards {get; set;}
-    public float Goals {get; set;}
-    public float Assists {get; set;}
-    public float MinutesPlayed {get; set;}
-    public float Games {get; set;}
-    public string Position {get; set;}
-    public float Age {get; set;}
-    public float YellowDiff {get; set;}
-    public float RedDiff {get; set;}
-    public float GoalsDiff {get; set;}
-    public float AssistsDiff {get; set;}
-    public float MinutesPlayedDiff {get; set;}
-    public float GamesDiff {get; set;}
-    public bool IsLastSeason {get; set;}
-}
-
-#!csharp
-
-public class RetirementPrediction {
-    public bool PredictedLabel {get; set;}
-}
-
-#!csharp
-
-var predictionEngine = context.Model.CreatePredictionEngine<PlayerSeason, RetirementPrediction>(bestModel, trainData.Schema);
-
-#!csharp
-
-PlayerSeason season = new() {
-    YellowCards = 5,
-    RedCards = 2, 
-    Goals = 1,
-    Assists = 3,
-    MinutesPlayed = 1814,
-    Games = 21, 
-    Position = "Midfield",
-    Age = 40,
-    YellowDiff = 3,
-    RedDiff = 1,
-    GoalsDiff = -6, 
-    AssistsDiff = -12,
-    MinutesPlayedDiff = -450,
-    GamesDiff = -6
-};
-RetirementPrediction prediction = predictionEngine.Predict(season);
-prediction
-
-#!csharp
-
-PlayerSeason season = new() {
-    YellowCards = 5,
-    RedCards = 2, 
-    Goals = 1,
-    Assists = 3,
-    MinutesPlayed = 2200,
-    Games = 26, 
-    Position = "Midfield",
-    Age = 40,
-    YellowDiff = 3,
-    RedDiff = 1,
-    GoalsDiff = 0, 
-    AssistsDiff = -12,
-    MinutesPlayedDiff = 0,
-    GamesDiff = 0
-};
-RetirementPrediction prediction = predictionEngine.Predict(season);
-prediction
+// Let's re-render
+df 
+|> buildCorrelationMatrix 
+|> plotCorrelationMatrix
+|> Chart.withTitle "Feature Correlations for Football Players"

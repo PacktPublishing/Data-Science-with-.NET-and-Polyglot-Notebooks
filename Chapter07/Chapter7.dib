@@ -4,7 +4,27 @@
 
 #!markdown
 
-# Chapter 7
+# Chapter 7: Classification Experiments with ML.NET AutoML
+
+#!markdown
+
+## Understanding Machine learning for developers
+
+#!markdown
+
+### Supervised learning
+
+#!mermaid
+
+flowchart TD
+    data[Data]
+    algorithm[Algorithm Selection]
+    data -- trains --> algorithm -- results in --> model[Trained Model]
+    hyper[Hyperparameters] -- configure --> algorithm
+
+#!markdown
+
+## Creating training and testing datasets
 
 #!csharp
 
@@ -12,273 +32,196 @@
 
 using Microsoft.Data.Analysis;
 
-DataFrame df = DataFrame.LoadCsv("training.csv");
-df.Head(5)
+DataFrame df = DataFrame.LoadCsv("PlayerRetirement.csv");
+
+// The first 12 rows follow a player's career in our dataset
+df.Head(12)
 
 #!csharp
 
-df["HighestPay"].Info()
-
-#!csharp
-
-df = df.Filter(df["CurrentPay"].ElementwiseIsNotNull());
-df = df.Filter(df["HighestPay"].ElementwiseIsNotNull());
-
-DataFrame dfWithName = df.Clone();
-df.Columns.Remove("Name");
-
-df.Rows.Count()
+df.Columns.Remove("PlayerId");
+df.Columns.Remove("Season");
 
 #!csharp
 
 #r "nuget:Microsoft.ML,3.0.1"
-#r "nuget:Microsoft.ML.AutoML,0.21.1"
 
 using Microsoft.ML;
 using Microsoft.ML.Data;
-using Microsoft.ML.AutoML;
 
-MLContext context = new();
+#!mermaid
+
+flowchart TD
+    data[Data] --> split[Train / Test Split]
+    split -- 70 to 90% --> trainData[Training Data]
+    split -- 10 to 30% --> testData[Test Data]
+    algorithm[Algorithm Selection]
+    trainData -- trains --> algorithm -- results in --> model[Trained Model]
+    testData -- validates --> model -- produces --> metrics[Evaluation Metrics]
+    hyper[Hyperparameters] -- configure --> algorithm
 
 #!csharp
 
-RegressionExperimentSettings settings = new() {
-    MaxModels = 10,
-    OptimizingMetric = RegressionMetric.MeanAbsoluteError
+MLContext context = new();
+IDataView data = df;
+
+var dataSplit = context.Data.TrainTestSplit(data, 
+    testFraction: 0.3, 
+    seed: 123);
+    
+IDataView trainData = dataSplit.TrainSet;
+IDataView testData = dataSplit.TestSet;
+
+#!markdown
+
+## Training a classification model with ML.NET AutoML
+
+#!csharp
+
+#r "nuget:Microsoft.ML.AutoML,0.21.1"
+
+using Microsoft.ML.AutoML;
+
+#!csharp
+
+uint maxSeconds = 10;
+BinaryExperimentSettings settings = new() {
+    MaxExperimentTimeInSeconds = maxSeconds,
+    //MaxModels = 1,
+    OptimizingMetric = BinaryClassificationMetric.F1Score,
 };
 settings
 
 #!csharp
 
-RegressionExperiment experiment = 
-    context.Auto().CreateRegressionExperiment(settings);
+string label = "IsLastSeason";
 
-string label = "CurrentPay";
+BinaryClassificationExperiment binaryExperiment = 
+    context.Auto().CreateBinaryClassificationExperiment(settings);
 
-CrossValidationExperimentResult<RegressionMetrics> result = 
-    experiment.Execute(df, numberOfCVFolds: 3, labelColumnName: label);
+ExperimentResult<BinaryClassificationMetrics> result = 
+    binaryExperiment.Execute(trainData, testData, labelColumnName: label);
 
 result
 
 #!csharp
 
-CrossValidationRunDetail<RegressionMetrics> best = result.BestRun;
-
-int index = 1;
-double totalMAE = 0;
-foreach (var result in best.Results) {
-    double mae = result.ValidationMetrics.MeanAbsoluteError;
-    Console.WriteLine($" Fold {index++} Mean Absolute Error: € {mae:N0}");
-    totalMAE += mae;
-}
-
-double averageMAE = totalMAE / best.Results.Count();
-Console.WriteLine($"Average Mean Absolute Error: € {averageMAE:N0}");
+result.RunDetails.Count()
 
 #!csharp
 
-TrainResult<RegressionMetrics> bestFold = best.Results.OrderBy(f => f.ValidationMetrics.MeanAbsoluteError).First();
-bestFold
+RunDetail<BinaryClassificationMetrics> bestRun = result.BestRun;
+bestRun
+
+#!markdown
+
+## Evaluating binary classification models
 
 #!csharp
 
-ITransformer model = bestFold.Model;
-model
+BinaryClassificationMetrics runMetrics = bestRun.ValidationMetrics;
+
+runMetrics.ConfusionMatrix.GetFormattedConfusionTable()
 
 #!csharp
 
-RegressionMetrics metrics = bestFold.ValidationMetrics;
-metrics
+runMetrics
 
 #!csharp
 
-Math.Sqrt(metrics.MeanSquaredError)
+TransformerChain<ITransformer> bestModel = bestRun.Model as TransformerChain<ITransformer>;
+bestModel
+
+#!markdown
+
+### Calculating feature importance
 
 #!csharp
 
-metrics.RootMeanSquaredError
-
-#!csharp
-
-metrics.MeanSquaredError.ToString("N0")
-
-#!csharp
-
-#r "nuget:MathNet.Numerics,5.0.0"
-
-using MathNet.Numerics.Statistics;
-
-SingleDataFrameColumn targetColumn = (SingleDataFrameColumn)df[label];
-
-double[] values = targetColumn.Where(v => v != null)
-                    .Select(v => (double)v)
-                    .OrderBy(v => v)
-                    .ToArray();
-
-DescriptiveStatistics stats = new(values);
-
-stats
-
-#!csharp
-
-stats.StandardDeviation / 1_000_000
-
-#!csharp
-
-public class Player {
-    public string Position {get; set;}
-    public string BirthCountry {get; set;}
-    public string SubPosition {get; set;}
-    public float Height {get; set;}
-    public float CurrentPay {get; set;}
-    public float HighestPay {get; set;}
-    public float BirthYear {get; set;}
-    public float Minutes {get; set;}
-    public float MinutesLastSeason {get; set;}
-    public float Games {get; set;}
-    public float GamesLastSeason {get; set;}
-    public float Goals {get; set;}
-    public float GoalsLastSeason {get; set;}
-    public float Assists {get; set;}
-    public float AssistsLastSeason {get; set;}
-    public float YellowCards {get; set;}
-    public float YellowLastSeason {get; set;}
-    public float RedCards {get; set;}
-    public float RedLastSeason {get; set;}
-    public float ShootoutGoals {get; set;}
-    public float ShootoutAppearances {get; set;}
-}
-
-#!csharp
-
-public class Prediction {
-    [ColumnName("Score")]
-    public float MarketValue {get; set;}
-}
-
-#!csharp
-
-PredictionEngine<Player, Prediction> engine = 
-    context.Model.CreatePredictionEngine<Player, Prediction>(model);
-
-#!csharp
-
-Player matt = new() {
-    Position = "Attack",
-    SubPosition = "Centre-Back",
-    Height = 168,
-    BirthYear = 1980,
-    Goals = 0,
-    Assists = 0,
-    YellowCards = 1,
-    RedCards = 0,
-    ShootoutGoals = 0,
-    ShootoutAppearances = 0,
-    Minutes = 2,
-    Games = 21
-};
-
-engine.Predict(matt)
-
-#!csharp
-
-float GetValueOrDefault(DataFrame df, DataFrameRow row, string columnName) {
-    if (!df.Columns.Any(c => c.Name == columnName)) {
-        throw new InvalidOperationException($"Column {columnName} not found");
-    }
-    object value = row[columnName];
-    return value == null ? 0 : (float)value;
-}
-
-#!csharp
-
-List<float> predictions = new();
-List<float> diff = new();
-List<float> percents = new();
-
-DataFrame dfSubset = dfWithName.Clone();
-
-foreach (var row in dfSubset.Rows)
-{
-    Player player = new() {
-        Position = row["Position"].ToString(),
-        SubPosition = row["SubPosition"].ToString(),
-        BirthCountry = row["BirthCountry"].ToString(),
-        Height = GetValueOrDefault(dfSubset, row, "Height"),
-        HighestPay = GetValueOrDefault(dfSubset, row, "HighestPay"),
-        BirthYear = (float)row["BirthYear"],
-        Minutes = (float)row["Minutes"],
-        MinutesLastSeason = GetValueOrDefault(dfSubset, row, "MinutesLastSeason"),
-        Goals = (float)row["Goals"],
-        GoalsLastSeason = GetValueOrDefault(dfSubset, row, "GoalsLastSeason"),
-        Assists = (float)row["Assists"],
-        AssistsLastSeason = GetValueOrDefault(dfSubset, row, "AssistsLastSeason"),
-        YellowCards = (float)row["YellowCards"],
-        YellowLastSeason = GetValueOrDefault(dfSubset, row, "YellowLastSeason"),
-        RedCards = (float)row["RedCards"],
-        RedLastSeason = GetValueOrDefault(dfSubset, row, "RedLastSeason"),
-        ShootoutGoals = (float)row["ShootoutGoals"],
-        ShootoutAppearances = (float)row["ShootoutAppearances"],
-        Games = (float)row["Games"],
-        GamesLastSeason = GetValueOrDefault(dfSubset, row, "GamesLastSeason")
-    };
-    
-    Prediction prediction = engine.Predict(player);
-
-    float currentPay = GetValueOrDefault(dfSubset, row, "CurrentPay");
-    float predicted = prediction.MarketValue;
-
-    float difference = predicted - currentPay;
-    float percent = (currentPay / predicted) * 100;
-
-    predictions.Add(predicted);
-    diff.Add(difference);
-    percents.Add(percent);
-}
-
-dfSubset.Columns.Add(new PrimitiveDataFrameColumn<float>("PredictedValue", predictions));
-dfSubset.Columns.Add(new PrimitiveDataFrameColumn<float>("PayDifference", diff));
-dfSubset.Columns.Add(new PrimitiveDataFrameColumn<float>("PercentOfProjectedPay", percents));
-
-#!csharp
-
-DataFrame dfAttackers = dfSubset.Filter(dfSubset["Position"].ElementwiseEquals("Attack"));
-dfAttackers.Head(5)
-
-#!csharp
-
-string[] columnsToKeep = new string[] { "Name", "Position", "SubPosition", "CurrentPay", "PredictedValue", "PercentOfProjectedPay", "Goals", "Assists", "Games", "Minutes", "GoalsLastSeason", "AssistsLastSeason", "BirthYear"};
-
-DataFrame dfNew = new DataFrame(columnsToKeep.Select(c => dfAttackers[c]));
-dfNew = dfNew.Filter(dfNew["CurrentPay"].ElementwiseGreaterThanOrEqual(75000));
-dfNew.OrderBy("PercentOfProjectedPay").Head(25)
-
-#!csharp
-
-dfNew.OrderByDescending("PercentOfProjectedPay").Head(10)
-
-#!csharp
-
-var transformed = model.Transform(df);
-transformed
-
-#!csharp
-
-var importance = context.Regression
-	.PermutationFeatureImportance(
-		model, 
-	    transformed, 
+var importance = context.BinaryClassification
+	.PermutationFeatureImportanceNonCalibrated(
+		bestModel, 
+	    bestModel.Transform(testData), 
 	    labelColumnName: label,
 	    permutationCount: 3);
 
-importance
+var orderedFeatures = importance.OrderByDescending(k => Math.Abs(k.Value.F1Score.Mean));
+foreach (var kvp in orderedFeatures) {
+    Console.WriteLine($"{kvp.Key} {kvp.Value.F1Score.Mean}");
+}
+
+#!markdown
+
+## Predicting values with binary classification models
 
 #!csharp
 
-var orderedFeatures = importance.OrderByDescending(k => 
-    Math.Abs(k.Value.MeanAbsoluteError.Mean));
-
-foreach (var kvp in orderedFeatures.Take(10)) {
-    double avgImpact = kvp.Value.MeanAbsoluteError.Mean;
-    Console.WriteLine($"{kvp.Key} {avgImpact}");
+public class PlayerSeason {
+    public float YellowCards {get; set;}
+    public float RedCards {get; set;}
+    public float Goals {get; set;}
+    public float Assists {get; set;}
+    public float MinutesPlayed {get; set;}
+    public float Games {get; set;}
+    public string Position {get; set;}
+    public float Age {get; set;}
+    public float YellowDiff {get; set;}
+    public float RedDiff {get; set;}
+    public float GoalsDiff {get; set;}
+    public float AssistsDiff {get; set;}
+    public float MinutesPlayedDiff {get; set;}
+    public float GamesDiff {get; set;}
+    public bool IsLastSeason {get; set;}
 }
+
+#!csharp
+
+public class RetirementPrediction {
+    public bool PredictedLabel {get; set;}
+}
+
+#!csharp
+
+var predictionEngine = context.Model.CreatePredictionEngine<PlayerSeason, RetirementPrediction>(bestModel, trainData.Schema);
+
+#!csharp
+
+PlayerSeason season = new() {
+    YellowCards = 5,
+    RedCards = 2, 
+    Goals = 1,
+    Assists = 3,
+    MinutesPlayed = 1814,
+    Games = 21, 
+    Position = "Midfield",
+    Age = 40,
+    YellowDiff = 3,
+    RedDiff = 1,
+    GoalsDiff = -6, 
+    AssistsDiff = -12,
+    MinutesPlayedDiff = -450,
+    GamesDiff = -6
+};
+RetirementPrediction prediction = predictionEngine.Predict(season);
+prediction
+
+#!csharp
+
+PlayerSeason season = new() {
+    YellowCards = 5,
+    RedCards = 2, 
+    Goals = 1,
+    Assists = 3,
+    MinutesPlayed = 2200,
+    Games = 26, 
+    Position = "Midfield",
+    Age = 40,
+    YellowDiff = 3,
+    RedDiff = 1,
+    GoalsDiff = 0, 
+    AssistsDiff = -12,
+    MinutesPlayedDiff = 0,
+    GamesDiff = 0
+};
+RetirementPrediction prediction = predictionEngine.Predict(season);
+prediction

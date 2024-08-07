@@ -4,7 +4,15 @@
 
 #!markdown
 
-# Chapter 5
+# Chapter 5: Visualizing data
+
+#!markdown
+
+## Extracting insights with descriptive statistics
+
+#!markdown
+
+### Using DataFrame.Description to generate descriptive statistics
 
 #!fsharp
 
@@ -20,10 +28,6 @@ df.Head(5)
 df.Columns.Remove("Id")
 df.Columns.Remove("club_id")
 df.Head(5)
-
-#!markdown
-
-## Descriptive Statistics
 
 #!fsharp
 
@@ -50,6 +54,10 @@ let sortedValues = df["market_value_in_eur"]
                 |> Array.sort
 
 sortedValues
+
+#!markdown
+
+### Descriptive statistics with MathNet.Numerics
 
 #!fsharp
 
@@ -85,7 +93,9 @@ SortedArrayStatistics.UpperQuartile(sortedValues)
 
 #!fsharp
 
-#r "nuget:ScottPlot,5.0.25"
+#r "nuget:ScottPlot,5.0.37"
+#r "nuget:Plotly.NET,5.0.0"
+#r "nuget:Plotly.NET.Interactive,5.0.0"
 
 #!markdown
 
@@ -110,11 +120,7 @@ Formatter.Register<ScottPlot.Plot>(
 
 #!markdown
 
-## Univariate Analysis
-
-#!markdown
-
-### Box Plot
+## Creating a box plot with ScottPlot
 
 #!fsharp
 
@@ -131,6 +137,10 @@ plot.Add.Box(new Box(
 
 plot
 
+#!markdown
+
+## Performing univariate analysis with Plotly.NET
+
 #!fsharp
 
 let marketValues = df["market_value_in_eur"] |> Seq.cast<single>
@@ -142,13 +152,9 @@ let minutesPerGame = df["minutes_played"] |> Seq.cast<single>
 let playerNames = df["name"] |> Seq.cast<string>
 let redCards = df["red_cards"] |> Seq.cast<single>
 
-#!fsharp
+#!markdown
 
-#r "nuget:Plotly.NET,5.0.0"
-
-#!fsharp
-
-#r "nuget: Plotly.NET.Interactive,5.0.0"
+### Box plots in Plotly.NET
 
 #!fsharp
 
@@ -178,7 +184,7 @@ Chart.BoxPlot(X = marketValues,
 
 #!markdown
 
-### Violin Chart
+### Violin plots with Plotly.NET
 
 #!fsharp
 
@@ -196,7 +202,7 @@ Chart.Violin(X = marketValues, Points = StyleParam.JitterPoints.All)
 
 #!markdown
 
-### Histogram
+### Histograms with Plotly.NET
 
 #!fsharp
 

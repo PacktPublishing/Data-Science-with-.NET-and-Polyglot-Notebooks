@@ -4,7 +4,11 @@
 
 #!markdown
 
-# Chapter 4
+# Chapter 4: Working with Tabular Data and DataFrames
+
+#!markdown
+
+## Working with DataFrames in C#
 
 #!csharp
 
@@ -18,7 +22,7 @@ DataFrame dfPlayers = DataFrame.LoadCsv("Players.csv");
 
 #!markdown
 
-## Viewing and Sampling Data
+### Viewing and Sampling Data
 
 #!csharp
 
@@ -38,7 +42,7 @@ dfPlayers.Sample(5)
 
 #!markdown
 
-## Rows
+### Rows
 
 #!csharp
 
@@ -48,6 +52,10 @@ dfPlayers.Rows.GetType()
 
 DataFrameRow row = dfPlayers.Rows[4];
 row
+
+#!markdown
+
+### Getting and setting cell values
 
 #!csharp
 
@@ -71,7 +79,7 @@ dfPlayers.Rows[0]["country_of_birth"] = "United States"
 
 #!markdown
 
-## Iterating over rows
+### Iterating over rows
 
 #!csharp
 
@@ -87,7 +95,11 @@ foreach (var row in dfPlayers.Rows)
 
 #!markdown
 
-## Columns
+## Working with columns
+
+#!markdown
+
+### Columns
 
 #!csharp
 
@@ -108,6 +120,10 @@ dfPlayers.Columns.Select(c => c.GetType().Name)
 #!csharp
 
 dfPlayers.Columns["position"]
+
+#!markdown
+
+### Analyzing columns
 
 #!csharp
 
@@ -134,33 +150,17 @@ dfPlayers["height_in_cm"]
 
 dfPlayers["height_in_cm"].Info()
 
+#!markdown
+
+### Tabulating value occurrences with ValueCounts
+
 #!csharp
 
 dfPlayers["height_in_cm"].ValueCounts()
 
-#!csharp
+#!markdown
 
-dfPlayers["height_in_cm"].Description()
-
-#!csharp
-
-dfPlayers["date_of_birth"].Description()
-
-#!csharp
-
-SingleDataFrameColumn colHeight = (SingleDataFrameColumn)dfPlayers["height_in_cm"];
-colHeight.Description()
-
-#!csharp
-
-float?[] values = ((PrimitiveDataFrameColumn<float>)(colHeight.Description())).ToArray();
-
-float nonNullValues = (float)values[0];
-float? max = values[1];
-float? min = values[2];
-float? mean = values[2];
-
-(nonNullValues, max, min, mean)
+### Getting values from a column
 
 #!csharp
 
@@ -175,7 +175,7 @@ values
 
 #!markdown
 
-## Removing Columns
+### Removing Columns
 
 #!csharp
 
@@ -193,7 +193,7 @@ foreach (var col in columnsToRemove)
 
 #!markdown
 
-## Renaming Columns
+### Renaming Columns
 
 #!csharp
 
@@ -205,7 +205,7 @@ dfPlayers["Id"]
 
 #!markdown
 
-## Feature Engineering
+### Adding a new column
 
 #!csharp
 
@@ -242,7 +242,7 @@ dfAges
 
 #!markdown
 
-## Missing Values
+## Handling missing Values
 
 #!csharp
 
@@ -270,11 +270,15 @@ dfPlayers.FillNulls(0)
 
 #!markdown
 
-## Sorting
+## Sorting, filtering, grouping, and merging data
 
 #!csharp
 
 dfPlayers.Head(1)
+
+#!markdown
+
+### Sorting DataFrames
 
 #!csharp
 
@@ -295,28 +299,7 @@ dfPlayers.Head(3)
 
 #!markdown
 
-## Filtering
-
-#!csharp
-
-var keeperFilter = dfPlayers["position"].ElementwiseEquals("Goalkeeper");
-keeperFilter
-
-#!csharp
-
-keeperFilter.GetType()
-
-#!csharp
-
-dfPlayers.Filter(keeperFilter).Head(5)
-
-#!csharp
-
-dfPlayers.Head(5)
-
-#!markdown
-
-## Grouping
+### Grouping and aggregating DataFrames
 
 #!csharp
 
@@ -340,7 +323,7 @@ dfStatsByPlayer.Head(5)
 
 #!markdown
 
-## Merging
+### Merging DataFrames
 
 #!csharp
 
@@ -453,7 +436,6 @@ dfJoined.Columns["name_left"].SetName("Name");
 dfJoined.Columns["country_of_birth"].SetName("BirthCountry");
 dfJoined.Columns["date_of_birth"].SetName("DateOfBirth");
 dfJoined.Columns["sub_position"].SetName("SubPosition");
-dfJoined.Columns["position"].SetName("Position");
 dfJoined.Columns["height_in_cm"].SetName("Height");
 dfJoined.Columns["market_value_in_eur"].SetName("MarketValue");
 dfJoined.Columns["minutes_played"].SetName("MinutesPlayed");
@@ -468,7 +450,7 @@ dfJoined.Head(5)
 
 #!markdown
 
-## Filtering
+### Filtering DataFrames
 
 #!csharp
 
