@@ -8,7 +8,7 @@
 
 #!markdown
 
-## Flowcharts
+## Communicating logic with flowcharts
 
 #!mermaid
 
@@ -70,7 +70,7 @@ flowchart LR
 
 #!markdown
 
-## Class Diagrams
+## Communicating structure with class diagrams
 
 #!mermaid
 
@@ -161,7 +161,7 @@ classDiagram
 
 #!markdown
 
-## Entity Relationship Diagrams
+## Communicating data with entity relationship diagrams
 
 #!mermaid
 
@@ -237,7 +237,7 @@ erDiagram
 
 #!markdown
 
-## State Diagrams
+## Communicating behavior with state diagrams
 
 #!mermaid
 
@@ -304,7 +304,7 @@ stateDiagram-v2
 
 #!markdown
 
-## Sequence Diagrams
+## Communicating flow with sequence diagrams
 
 #!mermaid
 
@@ -363,7 +363,7 @@ sequenceDiagram
 
 #!markdown
 
-## git Graphs
+## Communicating workflow with git graphs
 
 #!mermaid
 

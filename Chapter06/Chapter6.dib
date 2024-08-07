@@ -4,7 +4,11 @@
 
 #!markdown
 
-# Chapter 6: Multivariate Data
+# Chapter 6: Variable Correlations
+
+#!markdown
+
+## Performing multivariate analysis with Plotly.NET
 
 #!fsharp
 
@@ -53,11 +57,7 @@ open Plotly.NET
 
 #!markdown
 
-## Multivariate Analysis
-
-#!markdown
-
-### Univariate Plots with multiple dimensions
+### Multivariate analysis with box and violin plots
 
 #!fsharp
 
@@ -91,7 +91,7 @@ Chart.BoxPlot(Y = goals, X = clubs, MultiText=playerNames)
 
 #!markdown
 
-### Scatter Plot
+### Plotting multiple values with scatter plots
 
 #!fsharp
 
@@ -122,6 +122,10 @@ Chart.Point(x = goals,
     |> Chart.withXAxisStyle(TitleText = "Goals", MinMax=(0,2))
     |> Chart.withYAxisStyle(TitleText = "Assists", MinMax=(0,2))
 
+#!markdown
+
+### Adding color to a scatter plot
+
 #!fsharp
 
 Chart.Point(x = goals, 
@@ -145,6 +149,10 @@ Chart.Point(x = goals,
     |> Chart.withXAxisStyle(TitleText = "Goals", MinMax=(-0.1,1.6))
     |> Chart.withYAxisStyle(TitleText = "Assists", MinMax=(-0.1,1.6))
     |> Chart.withMarkerStyle(ShowScale = true)
+
+#!markdown
+
+### 3D Scatter plots with Plotly.NET
 
 #!fsharp
 
@@ -174,7 +182,11 @@ Chart.Point3D(x = goals,
 
 #!markdown
 
-### Correlation Matrix
+## Identifying variable correlations
+
+#!markdown
+
+### Calculating variable correlations
 
 #!fsharp
 
@@ -185,6 +197,10 @@ Correlation.Pearson(goals |> Seq.map float,
 
 Correlation.Pearson(assists |> Seq.map float, 
                     redCards |> Seq.map float)
+
+#!markdown
+
+### Building feature correlation matrixes
 
 #!fsharp
 

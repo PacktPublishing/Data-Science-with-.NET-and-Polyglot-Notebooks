@@ -4,7 +4,15 @@
 
 #!markdown
 
-# AI Orchestration
+# Chapter 12: AI Orchestration with Semantic Kernel
+
+#!markdown
+
+## Chatting with Semantic Kernel functions
+
+#!markdown
+
+### Building the Kernel
 
 #!csharp
 
@@ -36,6 +44,10 @@ builder.AddAzureOpenAIChatCompletion(
     apiKey: key.GetClearTextPassword());
 
 Kernel kernel = builder.Build();
+
+#!markdown
+
+### Creating a Prompt Function
 
 #!csharp
 
@@ -75,7 +87,7 @@ Console.WriteLine(await kernel.InvokeAsync(butler, data))
 
 #!markdown
 
-## Memory
+## Adding memory to Semantic Kernel
 
 #!csharp
 
@@ -134,6 +146,10 @@ await foreach (var result in results) {
 
 ## Defining Complex Functions
 
+#!markdown
+
+### Creating functions from methods
+
 #!csharp
 
 KernelFunction timeFunc = kernel.CreateFunctionFromMethod(
@@ -142,6 +158,10 @@ KernelFunction timeFunc = kernel.CreateFunctionFromMethod(
         "Retrieves the current time in the local time zone.");
 
 await kernel.InvokeAsync(timeFunc)
+
+#!markdown
+
+### Accepting KernelFunction parameters
 
 #!csharp
 
@@ -171,6 +191,10 @@ KernelArguments args = new KernelArguments {
 };
 await kernel.InvokeAsync(teamInfoFunc, args)
 
+#!markdown
+
+### Defining a memory function
+
 #!csharp
 
 KernelFunction searchFunc = 
@@ -191,7 +215,7 @@ await kernel.InvokeAsync(searchFunc, args)
 
 #!markdown
 
-## Plugins
+## Calling multiple functions using plugins
 
 #!csharp
 
@@ -215,6 +239,10 @@ var result = await kernel.InvokePromptAsync("Are the orange donkeys any good?", 
 Console.WriteLine(result);
 result
 
+#!markdown
+
+### Examining FunctionResult objects
+
 #!csharp
 
 FunctionResult result = await kernel.InvokePromptAsync(
@@ -224,7 +252,7 @@ result
 
 #!markdown
 
-## Planners
+## Handling complex requests with planners
 
 #!csharp
 

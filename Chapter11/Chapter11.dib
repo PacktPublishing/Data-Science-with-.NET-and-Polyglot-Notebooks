@@ -4,7 +4,7 @@
 
 #!markdown
 
-# Generative AI
+# Chapter 11: Generative AI in Polyglot Notebooks
 
 #!csharp
 
@@ -16,7 +16,7 @@ using Azure.AI.OpenAI.Chat;
 
 #!markdown
 
-## Connecting to Azure OpenAI Service
+## Connecting to an Azure OpenAI Service
 
 #!csharp
 
@@ -37,7 +37,7 @@ AzureOpenAIClient azureClient = new(endpoint, creds);
 
 #!markdown
 
-## Chatting
+## Chatting with a deployed model
 
 #!csharp
 
@@ -72,7 +72,7 @@ foreach (var message in result.Value.Content.Where(m => m.Kind == ChatMessageCon
 
 #!markdown
 
-## Prompt Engineering
+## Customizing model behavior with prompt engineering
 
 #!csharp
 
@@ -88,6 +88,10 @@ ClientResult<ChatCompletion> result = chatClient.CompleteChat([
 foreach (var message in result.Value.Content) {
     Console.WriteLine(message.Text);
 }
+
+#!markdown
+
+### Zero-shot, one-shot, and few-shot inferencing
 
 #!csharp
 
@@ -111,7 +115,7 @@ foreach (var message in result.Value.Content) {
 
 #!markdown
 
-## Text Embeddings
+## Using text embeddings
 
 #!csharp
 
@@ -149,7 +153,7 @@ TensorPrimitives.CosineSimilarity(embedding1.Vector.Span, embedding3.Vector.Span
 
 #!markdown
 
-## Image Generation
+## Generating images with DALL-E
 
 #!csharp
 

@@ -4,9 +4,15 @@
 
 #!markdown
 
-## Chapter 10
+## Chapter 10: Deploying machine learning models
 
-This notebook contains details of training the multi-class classification model used in this chapter
+This notebook contains details of training the multi-class classification model used in this chapter.
+
+Other parts of this chapter will occur in the `WinLossPredictorApi` folder's `WinLossPredictorApi.sln` file and are not covered by this notebook.
+
+#!markdown
+
+## Introducing our multi-class classification model
 
 #!csharp
 
@@ -26,6 +32,10 @@ using Microsoft.ML.Trainers.FastTree;
 DataFrame df = DataFrame.LoadCsv("../data/winloss.csv");
 df.Sample(5)
 
+#!markdown
+
+### Training our model
+
 #!csharp
 
 MLContext context = new(seed: 123);
@@ -33,13 +43,15 @@ var split = context.Data.TrainTestSplit(data: df, testFraction: 0.2, seed: 42);
 
 #!csharp
 
+var metric = MulticlassClassificationMetric.MacroAccuracy;
+
 MulticlassExperimentSettings settings = new() {
-    MaxExperimentTimeInSeconds = 10,
-    OptimizingMetric = MulticlassClassificationMetric.MacroAccuracy
+  MaxModels = 10,
+  OptimizingMetric = metric
 };
 
-MulticlassClassificationExperiment exp = 
-    context.Auto().CreateMulticlassClassificationExperiment(settings);
+MulticlassClassificationExperiment exp = context.Auto()
+	.CreateMulticlassClassificationExperiment(settings);
 
 #!csharp
 
@@ -48,11 +60,19 @@ ExperimentResult<MulticlassClassificationMetrics> result =
 ITransformer model = result.BestRun.Model;
 model
 
+#!markdown
+
+### Evaluating multi-class classification models
+
 #!csharp
 
 MulticlassClassificationMetrics metrics = result.BestRun.ValidationMetrics;
 metrics.Display();
 metrics.ConfusionMatrix.GetFormattedConfusionTable()
+
+#!markdown
+
+### Generating test predictions
 
 #!csharp
 
@@ -86,6 +106,10 @@ engine.Predict(new PredictionRequest() {
     IsHome = true,
 })
 
+#!markdown
+
+## Exporting ML.NET models
+
 #!csharp
 
 context.Model.Save(model: model, 
@@ -96,21 +120,3 @@ context.Model.Save(model: model,
 
 string modelPath = "WinLossPredictorApi/WinLossPredictor.zip";
 ITransformer loadedModel = context.Model.Load(modelPath, out _);
-
-#!csharp
-
-#r "nuget:Microsoft.ML.OnnxConverter,0.21.1"
-using System.IO;
-
-using (FileStream stream = File.Create("./WinLossPredictor.onnx")) {
-    context.Model.ConvertToOnnx(model, df, stream);
-}
-
-#!csharp
-
-#r "nuget:Microsoft.ML.OnnxTransformer,3.0.1"
-#r "nuget:Microsoft.ML.OnnxRuntime,1.18.1"
-
-using Microsoft.ML.Transforms.Onnx;
-
-OnnxScoringEstimator estimator = context.Transforms.ApplyOnnxModel("WinLossPredictor.onnx");

@@ -8,7 +8,11 @@
 
 #!markdown
 
-## Formatters
+Note: some portions of this chapter rely on features of Polyglot Notebooks that may still be in preview. You may need to switch to the **preview version** of the Polyglot Notebooks extension to execute this code. See the chapter details for more.
+
+#!markdown
+
+## Understanding default formatting behavior
 
 #!csharp
 
@@ -18,11 +22,15 @@ public class Footballer
     public string Position {get; set;}
     public decimal AverageGoals {get; set;}
     public decimal AverageAssists {get; set;}
-    private decimal? GoalToAssistRatio 
+    protected decimal? GoalToAssistRatio 
         => AverageAssists > 0 
             ? AverageGoals / AverageAssists
             : null;
 }
+
+#!markdown
+
+### Default object formatting
 
 #!csharp
 
@@ -35,6 +43,10 @@ List<Footballer> team = JsonSerializer.Deserialize<List<Footballer>>(json);
 Footballer bestPlayer = team.OrderByDescending(p => p.AverageGoals).First();
 bestPlayer
 
+#!markdown
+
+### Default collection formatting
+
 #!csharp
 
 team
@@ -43,8 +55,12 @@ team
 
 using Microsoft.DotNet.Interactive.Formatting;
 
-Formatter.ListExpansionLimit = team.Count;
+Formatter.ListExpansionLimit = 5;
 team
+
+#!markdown
+
+## Styling output with custom formatters
 
 #!csharp
 
@@ -54,14 +70,14 @@ Formatter.Register<IEnumerable<Footballer>>((players, writer) =>
     writer.WriteLine("<table>");
     writer.WriteLine("<thead><tr>");
     writer.WriteLine("<th>Name</th><th>Position</th><th>Avg Goals</th><th>Avg Assists</th>");
-    writer.WriteLine("</tr></thead>");
+    writer.WriteLine("</tr></thead><tbody>");
     foreach (var p in players)
     {
         writer.WriteLine("<tr>");
         writer.WriteLine($"<td>{p.Name}</td><td>{p.Position}</td><td>{p.AverageGoals}</td><td>{p.AverageAssists}</td>");
         writer.WriteLine("</tr>");
     }
-    writer.WriteLine("</table>");
+    writer.WriteLine("</tbody></table>");
 }, "text/html");
 
 team.Take(5)
@@ -72,7 +88,7 @@ team.Take(5)
 
 #!markdown
 
-## Magic Commands
+## Exploring magic commands
 
 #!csharp
 
@@ -96,60 +112,61 @@ for (int i = 0; i < int.MaxValue; i++) {
 
 #!markdown
 
-## Extensions
+## Creating a Polyglot Notebook extension
+
+#!markdown
+
+[Extension Documentation](https://github.com/dotnet/interactive/blob/main/docs/extending-dotnet-interactive.md)
+
+[Magic Command API Redesign Documentation](https://github.com/dotnet/interactive/issues/3567)
+
+#!markdown
+
+### Simple Extension
 
 #!csharp
 
+using Microsoft.DotNet.Interactive;
 using Microsoft.DotNet.Interactive.Directives;
 
-public class ReflectDirective : KernelActionDirective
+KernelActionDirective coinFlip = new("#!flip-coin")
 {
-    public ReflectDirective() : base("#!reflect")
-    {
-        Description = "Reflects the internal state of the object";
-        Parameters.Add(VariableNameParameter);
+    Description = "Flips a virtual coin and displays the result.",
+};
+
+#!csharp
+
+Random random = new();
+
+Kernel.Root.AddDirective(coinFlip, 
+    (command, context) => {
+        string result = random.Next(0, 2) == 0 
+            ? "Heads" 
+            : "Tails";
+
+        context.Display(result);
+
+        return Task.CompletedTask;
     }
-
-    public KernelDirectiveParameter VariableNameParameter { get; } =
-        new("--variable-name")
-        {
-            Description = "The name of the variable to reflect",
-            Required = true
-        };
-}
+);
 
 #!csharp
 
-KernelDirectiveParameter variableNameParameter = new("--variable-name")
-{
-    Description = "The name of the variable to reflect",
-    Required = true,
-    AllowImplicitName = true
-};
+#!flip-coin
 
 #!csharp
 
-KernelActionDirective reflectDirective = new("#!reflect")
-{
-    Description = "Reflects the internal state of the object",
-    Parameters = { variableNameParameter }
-};
+#!lsmagic
 
-#!csharp
+#!markdown
 
-using Microsoft.DotNet.Interactive.Commands;
-using System.CommandLine;
-
-public class VariableNameCommand : KernelCommand
-{
-    public string VariableName { get; set; }
-}
+## Working with Parameters
 
 #!csharp
 
 using System.Reflection;
 
-public Dictionary<string, string> ReflectObject(object obj)
+Dictionary<string, string> ReflectObject(object obj)
 {
     Dictionary<string, string> properties = new();
 
@@ -161,6 +178,32 @@ public Dictionary<string, string> ReflectObject(object obj)
         properties[prop.Name] = value?.ToString() ?? "null";
     }
     return properties;
+}
+ReflectObject(bestPlayer)
+
+#!csharp
+
+KernelDirectiveParameter varName = new("--variable-name") {
+  Description = "The name of the variable",
+  Required = true,
+  AllowImplicitName = true
+};
+
+#!csharp
+
+KernelActionDirective reflectDirective = new("#!reflect") {
+  Description = "Reflects the internal state of the object",
+  Parameters = { varName }
+};
+
+#!csharp
+
+using Microsoft.DotNet.Interactive.Commands;
+using System.CommandLine;
+
+public class VariableNameCommand : KernelCommand
+{
+    public string VariableName { get; set; }
 }
 
 #!csharp
@@ -177,7 +220,7 @@ csKernel.AddDirective<VariableNameCommand>(reflectDirective,
             var properties = ReflectObject(obj);
             properties.Display();            
         } else {
-            context.DisplayStandardError($"Could not find {name}");
+            context.DisplayStandardError($"Can't find {name}");
         }
 
         return Task.CompletedTask;
@@ -186,21 +229,15 @@ csKernel.AddDirective<VariableNameCommand>(reflectDirective,
 
 #!csharp
 
-#!reflect bestPlayer
+#!reflect --variable-name bestPlayer
 
 #!csharp
 
-#!lsmagic
+#!reflect bestPlayer
 
 #!markdown
 
-[Extension Documentation](https://github.com/dotnet/interactive/blob/main/docs/extending-dotnet-interactive.md)
-
-[Magic Command API Redesign Documentation](https://github.com/dotnet/interactive/issues/3567)
-
-#!markdown
-
-## Sending Commands to Kernels
+## Invoking code on kernels
 
 #!csharp
 
@@ -208,24 +245,15 @@ string[] steps = new[]
 {
     "Load Data",
     "Train / Test Split",
-    "Model Training",
-    "Model Evaluation",
-    "Deployment & Predictions"
+    "Training",
+    "Evaluation",
+    "Inferencing"
 };
 steps
 
-#!mermaid
-
-flowchart LR
-    s1[Load Data] 
-    s1 --> s2[Train / Test Split]
-    s2 --> s3[Model Training]
-    s3 --> s4[Model Evaluation]
-    s4 --> s5[Deployment & Predictions]
-
 #!csharp
 
-public string GenerateMermaidFlowchart(IEnumerable<string> items)
+string GenerateMermaidFlowchart(IEnumerable<string> items)
 {
     List<string> itemList = items?.ToList() ?? new();
     StringBuilder sb = new();
@@ -245,11 +273,11 @@ GenerateMermaidFlowchart(steps)
 #!mermaid
 
 flowchart LR
-    s0[Load Data]
-    s0 --> s1[Train / Test Split]
-    s1 --> s2[Model Training]
-    s2 --> s3[Model Evaluation]
-    s3 --> s4[Deployment & Predictions]
+    s1[Load Data] 
+    s1 --> s2[Train / Test Split]
+    s2 --> s3[Training]
+    s3 --> s4[Evaluation]
+    s4 --> s5[Inferencing]
 
 #!csharp
 
@@ -261,7 +289,7 @@ mermaidKernel
 KernelActionDirective flowchartDirective = new("#!flow")
 {
     Description = "Generates a Mermaid diagram consisting of a flowchart of sequential items",
-    Parameters = { variableNameParameter }
+    Parameters = { varName }
 };
 
 #!csharp
@@ -272,29 +300,18 @@ csKernel.AddDirective<VariableNameCommand>(flowchartDirective,
         if (csKernel.TryGetValue(name, out object obj)) {
             IEnumerable<string> items = (IEnumerable<string>) obj;
 
-            string flowchart = GenerateMermaidFlowchart(items.ToArray());
+            string md = GenerateMermaidFlowchart(items.ToArray());
 
-            context.DisplayStandardOut(flowchart);
+            context.DisplayStandardOut(md);
 
-            SubmitCode submitCommand = new(flowchart, targetKernelName: mermaidKernel.Name);
-            await KernelInvocationContext.Current.HandlingKernel.RootKernel.SendAsync(submitCommand);
+            SubmitCode submitCommand = new(md, targetKernelName: mermaidKernel.Name);
+            var root = context.HandlingKernel.RootKernel;
+            await root.SendAsync(submitCommand);
         } else {
             context.DisplayStandardError($"Could not find {name}");
         }
     }
 );
-
-#!csharp
-
-string[] steps = new[]
-{
-    "Load Data",
-    "Train / Test Split",
-    "Model Training",
-    "Model Evaluation",
-    "Deployment & Predictions"
-};
-steps
 
 #!csharp
 
