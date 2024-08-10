@@ -8,6 +8,10 @@
 
 #!markdown
 
+[Additional resources available online](https://mattonml.net/books/datascience/dataframe/)
+
+#!markdown
+
 ## Working with DataFrames in C#
 
 #!csharp
@@ -471,3 +475,8 @@ Final export of the chapter's data. This will be the data source used in Chapter
 #!csharp
 
 DataFrame.SaveCsv(dfJoined, "JoinedStats.csv")
+
+#!markdown
+
+## Additional Resources
+[Additional resources available online](https://mattonml.net/books/datascience/dataframe/)

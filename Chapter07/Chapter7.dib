@@ -8,6 +8,10 @@
 
 #!markdown
 
+[Additional resources available online](https://mattonml.net/books/datascience/classification/)
+
+#!markdown
+
 ## Understanding Machine learning for developers
 
 #!markdown
@@ -225,3 +229,9 @@ PlayerSeason season = new() {
 };
 RetirementPrediction prediction = predictionEngine.Predict(season);
 prediction
+
+#!markdown
+
+## Additional Resources
+
+[Additional resources available online](https://mattonml.net/books/datascience/classification/)

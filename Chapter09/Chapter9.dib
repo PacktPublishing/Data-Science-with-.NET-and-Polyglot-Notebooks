@@ -4,7 +4,11 @@
 
 #!markdown
 
-# Chapter 9: Beyond AutoML:  Pipelines, Trainers, & Transforms
+# Chapter 9: Beyond AutoML: Pipelines, Trainers, & Transforms
+
+#!markdown
+
+[Additional resources available online](https://mattonml.net/books/datascience/beyond-AutoML/)
 
 #!markdown
 
@@ -403,3 +407,9 @@ ITransformer model = result.Model;
 IDataView transformed = model.Transform(split.TestSet);
 
 context.Regression.Evaluate(transformed, labelColumnName: label)
+
+#!markdown
+
+## Additional Resources
+
+[Additional resources available online](https://mattonml.net/books/datascience/beyond-AutoML/)

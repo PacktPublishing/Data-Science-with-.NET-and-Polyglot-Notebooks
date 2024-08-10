@@ -8,6 +8,8 @@
 
 This notebook covers importing code and data in Polyglot Notebooks as part of "Data Science in .NET with Polyglot Notebooks" by Matt Eland.
 
+[Additional resources available online](https://mattonml.net/books/datascience/data/)
+
 #!markdown
 
 ## Importing Code and NuGet packages
@@ -358,3 +360,8 @@ SampleData
 #!csharp
 
 BooksTable
+
+#!markdown
+
+## Additional Resources
+[Additional resources available online](https://mattonml.net/books/datascience/data/)

@@ -8,6 +8,10 @@
 
 #!markdown
 
+[Additional resources available online](https://mattonml.net/books/datascience/regression/)
+
+#!markdown
+
 ## Understanding regression
 
 #!markdown
@@ -323,3 +327,9 @@ dfNew.OrderByDescending("PercentOfProjectedPay").Head(10)
 
 var transformed = model.Transform(df);
 transformed
+
+#!markdown
+
+## Additional Resources
+
+[Additional resources available online](https://mattonml.net/books/datascience/regression/)

@@ -8,6 +8,10 @@
 
 #!markdown
 
+[Additional resources available online](https://mattonml.net/books/datascience/datavis/)
+
+#!markdown
+
 ## Performing multivariate analysis with Plotly.NET
 
 #!fsharp
@@ -370,3 +374,8 @@ df
 |> buildCorrelationMatrix 
 |> plotCorrelationMatrix
 |> Chart.withTitle "Feature Correlations for Football Players"
+
+#!markdown
+
+## Additional Resources
+[Additional resources available online](https://mattonml.net/books/datascience/datavis/)
