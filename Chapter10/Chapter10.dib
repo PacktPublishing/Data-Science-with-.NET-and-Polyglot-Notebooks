@@ -12,6 +12,10 @@ Other parts of this chapter will occur in the `WinLossPredictorApi` folder's `Wi
 
 #!markdown
 
+[Additional resources available online](https://mattonml.net/books/datascience/model-deploy/)
+
+#!markdown
+
 ## Introducing our multi-class classification model
 
 #!csharp
@@ -60,6 +64,11 @@ ExperimentResult<MulticlassClassificationMetrics> result =
 ITransformer model = result.BestRun.Model;
 model
 
+#!csharp
+
+MulticlassClassificationMetrics metrics = result.BestRun.ValidationMetrics;
+metrics.ConfusionMatrix.GetFormattedConfusionTable()
+
 #!markdown
 
 ### Evaluating multi-class classification models
@@ -101,7 +110,7 @@ var engine = context.Model.CreatePredictionEngine<PredictionRequest, PredictionR
 engine.Predict(new PredictionRequest() {
     OurPosition = 1,
     OpponentPosition = 3,
-    OurGoalsLast3Games = 4,
+    OurGoalsLast3Games = 5,
     OpponentGoalsLast3Games = 2,
     IsHome = true,
 })
@@ -120,3 +129,9 @@ context.Model.Save(model: model,
 
 string modelPath = "WinLossPredictorApi/WinLossPredictor.zip";
 ITransformer loadedModel = context.Model.Load(modelPath, out _);
+
+#!markdown
+
+## Additional Resources
+
+[Additional resources available online](https://mattonml.net/books/datascience/model-deploy/)

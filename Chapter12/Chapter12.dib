@@ -8,6 +8,10 @@
 
 #!markdown
 
+[Additional resources available online](https://mattonml.net/books/datascience/ai-orchestration/)
+
+#!markdown
+
 ## Chatting with Semantic Kernel functions
 
 #!markdown
@@ -165,7 +169,7 @@ await kernel.InvokeAsync(timeFunc)
 
 #!csharp
 
-Dictionary<string, string> teamRecords = new() {
+Dictionary<string, string> teamRecords = new(StringComparer.OrdinalIgnoreCase) {
     { "Purple Cobras", "5 wins, 0 losses, 0 ties" },
     { "Orange Donkeys", "0 wins, 4 losses, 1 tie" },
     { "Silver Robots", "2 wins, 2 losses, 1 tie" },
@@ -268,3 +272,9 @@ var kernel = builder.Build();
 FunctionCallingStepwisePlanner planner = new();
 
 await planner.ExecuteAsync(kernel, "Coach, what time is it? Who are we playing anyways? Are they good?")
+
+#!markdown
+
+## Additional Resources
+
+[Additional resources available online](https://mattonml.net/books/datascience/ai-orchestration/)

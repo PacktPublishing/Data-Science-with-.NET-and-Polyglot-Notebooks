@@ -16,6 +16,10 @@ using Azure.AI.OpenAI.Chat;
 
 #!markdown
 
+[Additional resources available online](https://mattonml.net/books/datascience/gen-ai/)
+
+#!markdown
+
 ## Connecting to an Azure OpenAI Service
 
 #!csharp
@@ -181,3 +185,9 @@ Formatter.Register<GeneratedImage>((image, writer) =>
     writer.Write($"<p>{image.RevisedPrompt}</p>");
 }, "text/html");
 imgResult.Value
+
+#!markdown
+
+## Additional Resources
+
+[Additional resources available online](https://mattonml.net/books/datascience/gen-ai/)

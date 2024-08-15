@@ -8,6 +8,20 @@
 
 #!markdown
 
+[Additional resources available online](https://mattonml.net/books/datascience/mermaid/)
+
+#!markdown
+
+## Introducing Mermaid diagrams
+
+#!mermaid
+
+flowchart LR
+    createMermaidCell[Create Mermaid Cell] --> addMarkdown[Add Mermaid Markdown] 
+    addMarkdown --> runCell[Run Cell] --> seeMermaid[See Mermaid Diagram]
+
+#!markdown
+
 ## Communicating logic with flowcharts
 
 #!mermaid
@@ -26,6 +40,7 @@ flowchart LR
     split -- "70-90%" --> train[Train Model]
     train -- "Trained Model" --> test[Evaluate Model]
     split -- "10-30%" --> test
+    test -. "Performance insufficient" .-> train
     test --> predict[Predict New Values]
 
 #!mermaid
@@ -41,27 +56,30 @@ flowchart LR
         train -- "Trained Model" --> test
         split -- "10-30%" --> test
     end
+    test -. "Performance insufficient" .-> train
     load -- "DataFrame" --> split
     test --> predict
 
 #!mermaid
 
-flowchart LR
+flowchart TB
     load[Load Data]    
-    split[Split Data]
-    train[Train Model]
-    test[Evaluate Model]
-    predict([Predict New Values])
-    saved[(Saved Model)]
-    metrics[[Evaluation Metrics]]
     subgraph Training
-        split -- "70-90%" --> train
-        train -.-> saved
-        train --> test
+        metrics[[Evaluation Metrics]]
+        split[Split Data]
+        saved[(Saved Model)]
+        split -- "70-90%" --> train[Train Model]
+        train -- "Trained Model" --> test[Trained Model]
         split -- "10-30%" --> test
     end
+    subgraph Inferencing
+        loaded[(Loaded Model)]
+        saved -. "Load" .-> loaded[Loaded Model]
+        loaded -- "Load" --> predict([Predict New Values])
+    end
+    test -. "Save" .-> saved
     load -- "DataFrame" --> split
-    saved -.-> predict
+    test -. "Performance insufficient" .-> train
     test -.-> metrics
 
 #!markdown
@@ -167,7 +185,7 @@ classDiagram
 
 erDiagram
     Clubs ||--|{ Players : "Currently in"
-    Players }|--o{ Matches : "Plays in"
+    Players }o--o{ Matches : "Plays in"
     Matches }|--|| Clubs : "Home Club"
     Matches }|--|| Clubs : "Visiting Club"
 
@@ -257,7 +275,7 @@ stateDiagram-v2
     Combat --> Retreat : Health < 10%
     Combat --> Idle : No Targets
     Idle --> Combat : Enemy Detected
-    Idle --> Retreat : No Targets after 1 minute
+    Idle --> Retreat : No Targets After 1 Minute
     Retreat --> [*]
 
 #!mermaid
@@ -274,7 +292,7 @@ stateDiagram-v2
     Combat --> Retreat : Health < 10%
     Combat --> Idle : No Targets
     Idle --> Combat : Enemy Detected
-    Idle --> Retreat : No Targets after 1 minute
+    Idle --> Retreat : No Targets After 1 Minute
     Retreat --> [*]
 
 #!mermaid
@@ -295,7 +313,7 @@ stateDiagram-v2
     Combat --> Retreat : Health < 10%
     Combat --> Idle : No Targets
     Idle --> Combat : Enemy Detected
-    Idle --> Retreat : No Targets after 1 minute
+    Idle --> Retreat : No Targets After 1 Minute
     Retreat --> [*]
 
 #!markdown
@@ -433,3 +451,8 @@ gitGraph LR:
 #!markdown
 
 [git Graph Documentation](https://mermaid.js.org/syntax/gitgraph.html)
+
+#!markdown
+
+## Additional Resources
+[Additional resources available online](https://mattonml.net/books/datascience/mermaid/)
