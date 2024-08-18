@@ -12,6 +12,10 @@ Note: some portions of this chapter rely on features of Polyglot Notebooks that 
 
 #!markdown
 
+[Additional resources available online](https://mattonml.net/books/datascience/extending-polyglot/)
+
+#!markdown
+
 ## Understanding default formatting behavior
 
 #!csharp
@@ -74,7 +78,10 @@ Formatter.Register<IEnumerable<Footballer>>((players, writer) =>
     foreach (var p in players)
     {
         writer.WriteLine("<tr>");
-        writer.WriteLine($"<td>{p.Name}</td><td>{p.Position}</td><td>{p.AverageGoals}</td><td>{p.AverageAssists}</td>");
+        writer.WriteLine($"<td>{p.Name}</td>");
+        writer.WriteLine($"<td>{p.Position}</td>");
+        writer.WriteLine($"<td>{p.AverageGoals}</td>");
+        writer.WriteLine($"<td>{p.AverageAssists}</td>");
         writer.WriteLine("</tr>");
     }
     writer.WriteLine("</tbody></table>");
@@ -316,3 +323,8 @@ csKernel.AddDirective<VariableNameCommand>(flowchartDirective,
 #!csharp
 
 #!flow steps
+
+#!markdown
+
+## Additional Resources
+[Additional resources available online](https://mattonml.net/books/datascience/extending-polyglot/)

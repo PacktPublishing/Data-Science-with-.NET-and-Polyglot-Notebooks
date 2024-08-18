@@ -2,6 +2,11 @@
 
 {"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"languageName":"csharp","name":"csharp"}]}}
 
+#!markdown
+
+# Chapter 2: Exploring Polyglot Notebooks
+[Additional resources available online](https://mattonml.net/books/datascience/polyglot-notebooks/)
+
 #!csharp
 
 Console.WriteLine("Hello Polyglot Notebooks!");
@@ -95,3 +100,8 @@ Note how the Variables view now has two different values for maxNum for C# and F
 #!csharp
 
 #!about
+
+#!markdown
+
+## Additional Resources
+[Additional resources available online](https://mattonml.net/books/datascience/polyglot-notebooks/)

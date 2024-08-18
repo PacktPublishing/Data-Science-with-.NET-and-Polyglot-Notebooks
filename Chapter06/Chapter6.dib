@@ -4,11 +4,11 @@
 
 #!markdown
 
-# Chapter 6: Variable Correlations
+# Chapter 6: Visualizing Variable Relationships
 
 #!markdown
 
-[Additional resources available online](https://mattonml.net/books/datascience/datavis/)
+[Additional resources available online](https://mattonml.net/books/datascience/correlations/)
 
 #!markdown
 
@@ -17,29 +17,19 @@
 #!fsharp
 
 #r "nuget:Microsoft.Data.Analysis,0.21.1"
+#r "nuget:Plotly.NET,5.0.0"
+#r "nuget:Plotly.NET.Interactive,5.0.0"
+#r "nuget:MathNet.Numerics,5.0.0"
 
+open MathNet.Numerics.Statistics
+open Plotly.NET
 open Microsoft.Data.Analysis
 
-let df = DataFrame.LoadCsv("JoinedStats.csv")
-df.Head(5)
-
 #!fsharp
 
+let df = DataFrame.LoadCsv("JoinedStats.csv")
 df.Columns.Remove("Id")
 df.Columns.Remove("club_id")
-df.Head(5)
-
-#!fsharp
-
-let sortedValues = df["market_value_in_eur"] 
-                |> Seq.cast<single>
-                |> Seq.map float
-                |> Array.ofSeq
-                |> Array.sort
-
-sortedValues
-
-#!fsharp
 
 let marketValues = df["market_value_in_eur"] |> Seq.cast<single>
 let positions = df["position"] |> Seq.cast<string>
@@ -49,15 +39,6 @@ let assists = df["assists"] |> Seq.cast<single>
 let minutesPerGame = df["minutes_played"] |> Seq.cast<single>
 let playerNames = df["name"] |> Seq.cast<string>
 let redCards = df["red_cards"] |> Seq.cast<single>
-
-#!fsharp
-
-#r "nuget:Plotly.NET,5.0.0"
-#r "nuget:Plotly.NET.Interactive,5.0.0"
-#r "nuget:MathNet.Numerics,5.0.0"
-
-open MathNet.Numerics.Statistics
-open Plotly.NET
 
 #!markdown
 
@@ -378,4 +359,4 @@ df
 #!markdown
 
 ## Additional Resources
-[Additional resources available online](https://mattonml.net/books/datascience/datavis/)
+[Additional resources available online](https://mattonml.net/books/datascience/correlations/)
