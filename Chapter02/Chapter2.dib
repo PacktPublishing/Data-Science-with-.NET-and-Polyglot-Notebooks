@@ -58,7 +58,7 @@ public class Book
 #!csharp
 
 Book thisBook = new() {
-    Title = "Data Science in .NET with Polyglot Notebooks",
+    Title = "Data Science with .NET with Polyglot Notebooks",
     Author = "Matt Eland",
     ISBN = "978-1-83588-296-2"
 };
