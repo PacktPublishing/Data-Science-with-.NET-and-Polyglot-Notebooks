@@ -7,7 +7,7 @@ This is the code repository for [Data Science with .NET and Polyglot Notebooks](
 **Programmer’s guide to data science using ML.NET, OpenAI, and Semantic Kernel**
 
 ## What is this book about?
-As the fields of data science, machine learning, and artificial intelligence rapidly evolve, .NET developers are eager to leverage their expertise to dive into these exciting domains but are often unsure of how to do so. Data Science in .NET with Polyglot Notebooks is the practical guide you need to seamlessly bring your .NET skills into the world of analytics and AI.
+This book presents a hands-on learning approach to data science, machine learning, generative AI, and AI orchestration by guiding you through various experiments using Polyglot Notebooks.
 
 This book covers the following exciting features:
 * Load, analyze, and transform data using DataFrames, data visualization, and descriptive statistics
